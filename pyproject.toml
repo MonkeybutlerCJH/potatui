@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "potatui"
+version = "0.1.0"
+description = "A TUI application for logging Parks on the Air (POTA) activations"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "textual>=0.60",
+    "httpx>=0.25",
+    "tomli>=2.0; python_version < '3.11'",
+]
+
+[project.scripts]
+potatui = "potatui.main:run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["potatui"]
