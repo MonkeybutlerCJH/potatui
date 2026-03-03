@@ -185,13 +185,14 @@ After confirming a QSY from the spots screen, the logger screen receives:
 
 ## Spots Screen
 
-`SpotsScreen(config, flrig, park_latlon=None)` — park_latlon passed from LoggerScreen.
+`SpotsScreen(config, flrig, park_latlon=None, session=None)` — park_latlon and session passed from LoggerScreen.
 - Columns: Activator, Park, Park Name, Freq, Band, Mode, State, Dist, Age, Comments
 - Filter bar: Band select, Mode select, Sort select (Distance / Age)
 - Distance computed via haversine from `park_latlon` to `spot.grid` (Maidenhead)
 - Sort by distance (ascending, unknowns last) or age (newest first)
 - Filter/sort selections persist between visits via class-level `_saved_band`, `_saved_mode`, `_saved_sort`
 - Auto-refreshes every 60 seconds; `r` to manual refresh
+- Worked activators shown with bold green "✓ CALLSIGN" — matched by callsign against session QSOs
 
 ## Voice Keyer
 

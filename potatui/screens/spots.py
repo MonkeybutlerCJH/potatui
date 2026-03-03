@@ -5,13 +5,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
+from rich.text import Text
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal
-from textual.screen import ModalScreen, Screen
+from textual.containers import Horizontal
+from textual.screen import Screen
 from textual.widgets import (
-    Button,
     DataTable,
     Footer,
     Label,
@@ -23,6 +23,7 @@ from potatui.adif import freq_to_band
 from potatui.config import Config
 from potatui.flrig import FlrigClient
 from potatui.pota_api import Spot, fetch_spots
+from potatui.session import Session
 
 BAND_FILTER_OPTIONS = [("All", "All"), ("160m", "160m"), ("80m", "80m"),
                        ("60m", "60m"), ("40m", "40m"), ("30m", "30m"),
@@ -47,50 +48,6 @@ def _spot_age_minutes(spot_time_str: str) -> int:
     except Exception:
         pass
     return 0
-
-
-# ---------------------------------------------------------------------------
-# QSY confirmation modal
-# ---------------------------------------------------------------------------
-
-class QSYModal(ModalScreen[bool]):
-    CSS = """
-    QSYModal { align: center middle; }
-    #qsy-box {
-        width: 55;
-        height: auto;
-        border: solid $primary;
-        background: $surface;
-        padding: 1 2;
-    }
-    #qsy-title { text-align: center; text-style: bold; margin-bottom: 1; }
-    #qsy-msg { margin-bottom: 1; }
-    #qsy-btns { align: right middle; height: auto; }
-    """
-
-    def __init__(self, message: str) -> None:
-        super().__init__()
-        self.message = message
-
-    def compose(self) -> ComposeResult:
-        with Container(id="qsy-box"):
-            yield Static("QSY Confirmation", id="qsy-title")
-            yield Static(self.message, id="qsy-msg")
-            with Horizontal(id="qsy-btns"):
-                yield Button("Yes", variant="primary", id="yes")
-                yield Button("No", id="no")
-
-    @on(Button.Pressed, "#yes")
-    def on_yes(self) -> None:
-        self.dismiss(True)
-
-    @on(Button.Pressed, "#no")
-    def on_no(self) -> None:
-        self.dismiss(False)
-
-    def on_key(self, event) -> None:
-        if event.key == "escape":
-            self.dismiss(False)
 
 
 # ---------------------------------------------------------------------------
@@ -182,11 +139,13 @@ class SpotsScreen(Screen):
         config: Config,
         flrig: FlrigClient,
         park_latlon: tuple[float, float] | None = None,
+        session: Session | None = None,
     ) -> None:
         super().__init__()
         self.config = config
         self.flrig = flrig
         self._park_latlon = park_latlon
+        self._session = session
         self._spots: list[Spot] = []
         self._filtered: list[Spot] = []
 
@@ -292,13 +251,24 @@ class SpotsScreen(Screen):
         self._filtered = filtered
         self._rebuild_table()
 
+    def _worked_callsigns(self) -> set[str]:
+        if not self._session:
+            return set()
+        return {q.callsign.upper() for q in self._session.qsos}
+
     def _rebuild_table(self) -> None:
         table = self.query_one("#spots-table", DataTable)
         table.clear()
+        worked = self._worked_callsigns()
         for spot in self._filtered:
             age = _spot_age_minutes(spot.spot_time)
+            is_worked = spot.activator.upper() in worked
+            if is_worked:
+                activator_cell = Text(f"✓ {spot.activator}", style="bold green")
+            else:
+                activator_cell = Text(spot.activator)
             table.add_row(
-                spot.activator,
+                activator_cell,
                 spot.reference,
                 spot.park_name[:22] if spot.park_name else "",
                 f"{spot.frequency:.1f}",
@@ -325,7 +295,8 @@ class SpotsScreen(Screen):
         except Exception:
             return
 
-        activator = str(row[0])
+        # Activator cell may be a Rich Text with "✓ " prefix — strip it
+        activator = str(row[0]).removeprefix("✓ ")
         park_ref = str(row[1])
         freq_str = str(row[3])
         mode = str(row[5])
@@ -335,22 +306,15 @@ class SpotsScreen(Screen):
         except ValueError:
             return
 
-        msg = f"QSY to {freq_khz:.1f} kHz {mode}\nfor {activator} at {park_ref}?"
-
-        def on_confirm(confirmed: bool) -> None:
-            if not confirmed:
-                return
-            ok_freq = self.flrig.set_frequency(freq_khz * 1000)
-            ok_mode = self.flrig.set_mode(mode)
-            if not ok_freq or not ok_mode:
-                self.notify("flrig not connected — radio not tuned", severity="warning")
-            self.app.pop_screen()
-            from potatui.screens.logger import LoggerScreen
-            for screen in self.app.screen_stack:
-                if isinstance(screen, LoggerScreen):
-                    screen.prefill_callsign(activator)
-                    screen.update_freq_mode(freq_khz, mode)
-                    screen.prefill_p2p(park_ref)
-                    break
-
-        self.app.push_screen(QSYModal(msg), on_confirm)
+        ok_freq = self.flrig.set_frequency(freq_khz * 1000)
+        ok_mode = self.flrig.set_mode(mode)
+        if not ok_freq or not ok_mode:
+            self.notify("flrig not connected — radio not tuned", severity="warning")
+        self.app.pop_screen()
+        from potatui.screens.logger import LoggerScreen
+        for screen in self.app.screen_stack:
+            if isinstance(screen, LoggerScreen):
+                screen.prefill_callsign(activator)
+                screen.update_freq_mode(freq_khz, mode)
+                screen.prefill_p2p(park_ref)
+                break

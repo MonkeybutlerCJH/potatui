@@ -1330,6 +1330,7 @@ class LoggerScreen(Screen):
                 config=self.config,
                 flrig=self.flrig,
                 park_latlon=self._park_latlon,
+                session=self.session,
             )
         )
 
