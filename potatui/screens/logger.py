@@ -520,9 +520,9 @@ class SetFreqModal(ModalScreen):
 
 class LoggerScreen(Screen):
     BINDINGS = [
-        Binding("f2", "set_freq", "Set Freq"),
+        Binding("f2", "set_freq", "Set Run Freq"),
         Binding("f3", "mode_picker", "Mode"),
-        Binding("f4", "edit_last_qso", "Browse QSOs"),
+        Binding("f4", "edit_last_qso", "Edit QSOs"),
         Binding("f5", "goto_spots", "Spots"),
         Binding("f6", "self_spot", "Self-Spot"),
         Binding("f7", "voice_keyer", "VK Panel"),
@@ -534,6 +534,7 @@ class LoggerScreen(Screen):
         Binding("ctrl+5", "vk5", "VK5", show=False),
         Binding("f10", "end_session", "End Session"),
         Binding("ctrl+d", "delete_qso", "Del QSO"),
+        Binding("escape", "clear_form", "Clear QSO"),
     ]
 
     CSS = """
@@ -563,6 +564,11 @@ class LoggerScreen(Screen):
 
     .hdr-valid {
         color: $success;
+        text-style: bold;
+    }
+
+    .hdr-need {
+        color: $error;
         text-style: bold;
     }
 
@@ -637,11 +643,11 @@ class LoggerScreen(Screen):
 
     #qrz-info-bar {
         height: 3;
-        background: $surface-darken-1;
-        border-top: tall $accent-darken-2;
-        border-bottom: tall $surface-darken-2;
+        background: #0d0d0d;
+        border: round $accent;
         padding: 0 2;
         color: $accent;
+        text-style: bold;
         content-align: left middle;
     }
 
@@ -650,21 +656,23 @@ class LoggerScreen(Screen):
     }
 
     #qrz-info-bar.pending {
-        color: $text-muted;
+        color: $accent-darken-2;
         text-style: italic;
+        border: round $accent-darken-2;
     }
 
     #qrz-info-bar.notfound {
         color: $text-muted;
+        text-style: none;
+        border: round $surface-lighten-2;
     }
 
     #p2p-info-bar {
         height: 3;
-        background: $primary-darken-3;
-        border-top: tall $primary;
-        border-bottom: tall $primary-darken-2;
+        background: #0d0d0d;
+        border: round $accent;
         padding: 0 2;
-        color: $success;
+        color: $accent;
         text-style: bold;
         content-align: left middle;
     }
@@ -675,11 +683,10 @@ class LoggerScreen(Screen):
 
     #p2p-info-bar.warn {
         color: $warning;
-        border-top: tall $warning-darken-2;
+        border: round $warning;
     }
 
     #btn-log {
-        margin-top: 1;
         min-width: 8;
     }
 
@@ -849,9 +856,11 @@ class LoggerScreen(Screen):
         if count >= 10:
             count_widget.update(f"QSOs: {count}  [✓ VALID]")
             count_widget.add_class("hdr-valid")
+            count_widget.remove_class("hdr-need")
         else:
             count_widget.update(f"QSOs: {count}")
             count_widget.remove_class("hdr-valid")
+            count_widget.add_class("hdr-need")
 
     def _tick_clock(self) -> None:
         now = datetime.utcnow()
@@ -1005,8 +1014,10 @@ class LoggerScreen(Screen):
                     self.notify(f"ADIF write error: {e}", severity="error")
         self._save_session()
         self._update_qso_count()
+        self._reset_form()
 
-        # Clear form
+    def _reset_form(self) -> None:
+        """Clear all entry fields back to their default state."""
         self.query_one("#f-callsign", Input).value = ""
         self.query_one("#f-rst-sent", Input).value = _rst_default(self.mode)
         self.query_one("#f-rst-rcvd", Input).value = _rst_default(self.mode)
@@ -1307,13 +1318,9 @@ class LoggerScreen(Screen):
         if qso_id is not None:
             self._open_edit_for_qso_id(qso_id)
 
-    def on_key(self, event) -> None:
-        """Escape from the QSO table returns focus to the callsign entry field."""
-        if event.key == "escape":
-            table = self.query_one("#qso-table", DataTable)
-            if table.has_focus:
-                event.stop()
-                self.query_one("#f-callsign", Input).focus()
+    def action_clear_form(self) -> None:
+        """Escape — clear entry form and return focus to callsign."""
+        self._reset_form()
 
     def action_goto_spots(self) -> None:
         from potatui.screens.spots import SpotsScreen

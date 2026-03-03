@@ -107,7 +107,7 @@ Fields: Callsign, Park Ref(s), Power (W), Rig, Antenna.
 | F10      | End session                               |
 | Ctrl+1–5 | Quick-fire voice keyer slots 1–5          |
 | Ctrl+D   | Delete QSO                                |
-| Escape   | Return focus to callsign from QSO table   |
+| Escape   | Clear entry form, return focus to callsign |
 
 ## Entry Form Tab Order
 
