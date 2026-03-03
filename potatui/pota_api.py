@@ -61,7 +61,14 @@ def is_valid_park_ref(ref: str) -> bool:
 
 
 async def lookup_park(ref: str, base_url: str) -> Optional[ParkInfo]:
-    """Look up a single park reference. Returns None on failure."""
+    """Look up a park — local DB first, POTA API on cache miss."""
+    # Check local cache first (lazy import avoids circular dependency)
+    from potatui.park_db import park_db
+    if park_db.loaded:
+        local = park_db.lookup(ref)
+        if local:
+            return local
+
     url = f"{base_url.rstrip('/')}/park/{ref.upper()}"
     try:
         async with httpx.AsyncClient(timeout=10) as client:

@@ -21,6 +21,10 @@ class PotaLogApp(App):
         if self._config.theme:
             self.theme = self._config.theme
 
+        # Load the local park database from disk (fast, synchronous).
+        from potatui.park_db import park_db
+        park_db.load()
+
         if not self._config.callsign:
             # First run — show settings before anything else.
             from potatui.screens.settings import SettingsScreen
@@ -29,13 +33,32 @@ class PotaLogApp(App):
                 callback=self._after_settings,
             )
         else:
-            self._go_to_start()
+            self._check_park_db()
 
     def _after_settings(self, _result: object = None) -> None:
         """Called when the settings screen is dismissed on first run."""
-        self._go_to_start()
+        self._check_park_db()
 
-    def _go_to_start(self) -> None:
+    def _check_park_db(self) -> None:
+        """Show the park DB download/refresh modal if needed, else proceed."""
+        from potatui.park_db import park_db
+        from potatui.screens.park_update import ParkDbModal
+
+        if park_db.needs_download():
+            self.push_screen(ParkDbModal(is_refresh=False), callback=self._after_park_db)
+        elif park_db.needs_refresh():
+            self.push_screen(ParkDbModal(is_refresh=True), callback=self._after_park_db)
+        else:
+            self._continue_to_start()
+
+    def _after_park_db(self, downloaded: bool) -> None:
+        """Called after the park DB modal is dismissed."""
+        if downloaded:
+            from potatui.park_db import park_db
+            park_db.load()
+        self._continue_to_start()
+
+    def _continue_to_start(self) -> None:
         from potatui.screens.resume import find_saved_sessions
         sessions = find_saved_sessions(self._config.log_dir_path)
 

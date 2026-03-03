@@ -576,6 +576,24 @@ class LoggerScreen(Screen):
         color: $warning;
     }
 
+    #hdr-net {
+        width: auto;
+        padding: 0 1;
+        text-style: bold;
+    }
+
+    #hdr-net.net-online {
+        color: $success;
+    }
+
+    #hdr-net.net-offline {
+        color: $error;
+    }
+
+    #hdr-net.net-unknown {
+        color: $text-muted;
+    }
+
     #hdr-flrig {
         width: auto;
         padding: 0 1;
@@ -749,6 +767,8 @@ class LoggerScreen(Screen):
             yield Static("|", classes="hdr-sep")
             yield Static("", id="hdr-elapsed", classes="hdr-item")
             yield Static("", id="hdr-spacer")
+            yield Static("○ net", id="hdr-net", classes="net-unknown")
+            yield Static("|", classes="hdr-sep")
             yield Static("● flrig: offline", id="hdr-flrig", classes="flrig-offline")
 
         # Entry form
@@ -801,6 +821,8 @@ class LoggerScreen(Screen):
         self._update_header()
         self.set_interval(1.0, self._tick_clock)
         self.set_interval(2.0, self._poll_flrig)
+        self.set_interval(30.0, self._check_internet_connectivity)
+        self._check_internet_connectivity()
         self._fetch_park_location()
         self.query_one("#f-callsign", Input).focus()
 
@@ -894,6 +916,22 @@ class LoggerScreen(Screen):
             self._flrig_online = False
 
         self._update_radio_display()
+
+    @work(exclusive=True, group="net-check")
+    async def _check_internet_connectivity(self) -> None:
+        from potatui.park_db import check_internet
+        online = await check_internet(self.config.pota_api_base)
+        widget = self.query_one("#hdr-net", Static)
+        if online:
+            widget.update("● net")
+            widget.add_class("net-online")
+            widget.remove_class("net-offline")
+            widget.remove_class("net-unknown")
+        else:
+            widget.update("○ net")
+            widget.add_class("net-offline")
+            widget.remove_class("net-online")
+            widget.remove_class("net-unknown")
 
     def _add_qso_row(self, qso: QSO) -> None:
         table = self.query_one("#qso-table", DataTable)
