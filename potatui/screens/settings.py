@@ -9,7 +9,7 @@ from textual.containers import Container, Horizontal, ScrollableContainer, Verti
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Input, Label, Select, Static
 
-from potatui.config import Config, save_config
+from potatui.config import CONFIG_PATH, Config, save_config
 
 
 class SettingsScreen(Screen):
@@ -193,6 +193,10 @@ class SettingsScreen(Screen):
                 with Horizontal(classes="field-row"):
                     yield Label("Password:", classes="field-label")
                     yield Input(value=self.config.qrz_password, password=True, id="s-qrz-pass", classes="field-input")
+
+                # ── Config path ─────────────────────────────────────────
+                yield Static("─" * 60, classes="section-rule")
+                yield Static(f"Config file: {CONFIG_PATH}", classes="field-hint", id="config-path-hint")
 
             with Horizontal(id="btn-row"):
                 yield Static("", id="save-status")
