@@ -109,7 +109,7 @@ def write_adif(session: Session, path: Path, park_ref: Optional[str] = None) -> 
     """
     effective_ref = park_ref or session.active_park_ref
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(_adif_header())
         for qso in session.qsos:
             f.write(_qso_to_adif(qso, session.operator, effective_ref, session.my_state))
@@ -119,9 +119,9 @@ def append_qso_adif(qso: QSO, operator: str, park_ref: str, path: Path, my_state
     """Append a single QSO to an ADIF file, writing header if new."""
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(_adif_header())
-    with open(path, "a") as f:
+    with open(path, "a", encoding="utf-8") as f:
         f.write(_qso_to_adif(qso, operator, park_ref, my_state))
 
 

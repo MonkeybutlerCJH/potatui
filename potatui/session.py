@@ -124,7 +124,7 @@ class Session:
         }
 
     def save_json(self, path: str) -> None:
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=2)
 
     @classmethod
@@ -137,5 +137,5 @@ class Session:
 
     @classmethod
     def load_json(cls, path: str) -> "Session":
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             return cls.from_dict(json.load(f))

@@ -260,14 +260,14 @@ api_base = {q(cfg.pota_api_base)}
 
 theme = {q(cfg.theme)}
 """
-    CONFIG_PATH.write_text(content)
+    CONFIG_PATH.write_text(content, encoding="utf-8")
 
 
 def load_config() -> Config:
     """Load config, creating the default file if it doesn't exist yet."""
     if not CONFIG_PATH.exists():
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        CONFIG_PATH.write_text(DEFAULT_CONFIG_TOML)
+        CONFIG_PATH.write_text(DEFAULT_CONFIG_TOML, encoding="utf-8")
 
     with open(CONFIG_PATH, "rb") as f:
         data = tomllib.load(f)
