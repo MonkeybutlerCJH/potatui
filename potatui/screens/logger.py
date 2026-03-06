@@ -1083,6 +1083,8 @@ class LoggerScreen(Screen):
     def _add_qso_row(self, qso: QSO) -> None:
         table = self.query_one("#qso-table", DataTable)
         freq_str = f"{qso.freq_khz:.1f}"
+        name = qso.name[:30] + "…" if len(qso.name) > 30 else qso.name
+        notes = qso.notes[:20] + "…" if len(qso.notes) > 20 else qso.notes
         row = (
             str(qso.qso_id),
             qso.timestamp_utc.strftime("%H%M"),
@@ -1091,10 +1093,10 @@ class LoggerScreen(Screen):
             qso.rst_rcvd,
             freq_str,
             qso.mode,
-            qso.name,
+            name,
             qso.state,
             qso.p2p_ref if qso.is_p2p else "",
-            qso.notes,
+            notes,
         )
         # Insert at top
         table.add_row(*row, key=str(qso.qso_id))
