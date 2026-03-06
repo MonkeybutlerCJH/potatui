@@ -764,6 +764,32 @@ class LoggerScreen(Screen):
         min-width: 8;
     }
 
+    #last-spotted-bar {
+        height: 1;
+        padding: 0 1;
+        color: $text-muted;
+        text-style: italic;
+    }
+
+    #last-spotted-bar.hidden {
+        display: none;
+    }
+
+    #last-spotted-bar.spot-recent {
+        color: $success;
+        text-style: bold;
+    }
+
+    #last-spotted-bar.spot-stale {
+        color: $warning;
+        text-style: none;
+    }
+
+    #last-spotted-bar.spot-old {
+        color: $text-muted;
+        text-style: italic;
+    }
+
     #qso-table-container {
         height: 1fr;
     }
@@ -793,6 +819,7 @@ class LoggerScreen(Screen):
         from potatui.qrz import QRZClient
         self._qrz = QRZClient(config.qrz_username, config.qrz_password, config.qrz_api_url)
         self._park_latlon: tuple[float, float] | None = None
+        self._last_spot_data: tuple[datetime, str, str] | None = None  # (utc_time, spotter, comments)
         self._log_paths = self._make_log_paths()
         self._json_path = self._make_json_path()
 
@@ -828,6 +855,9 @@ class LoggerScreen(Screen):
             yield Static("flrig", id="hdr-flrig", classes="flrig-offline")
             yield Static("|", classes="hdr-sep")
             yield Static("qrz", id="hdr-qrz", classes="qrz-unconfigured")
+
+        # Last-spotted bar (hidden until a spot is found)
+        yield Static("", id="last-spotted-bar", classes="hidden")
 
         # Entry form
         with Horizontal(id="entry-form"):
@@ -880,8 +910,10 @@ class LoggerScreen(Screen):
         self.set_interval(1.0, self._tick_clock)
         self.set_interval(2.0, self._poll_flrig)
         self.set_interval(30.0, self._check_internet_connectivity)
+        self.set_interval(60.0, self._poll_spots_for_self)
         self._check_internet_connectivity()
         self._fetch_park_location()
+        self._poll_spots_for_self()
         self._update_qrz_indicator()
         self.query_one("#f-callsign", Input).focus()
 
@@ -943,6 +975,57 @@ class LoggerScreen(Screen):
         elapsed_str = f"{h:02d}:{m:02d}:{s:02d}"
         self.query_one("#hdr-utc", Static).update(utc_str)
         self.query_one("#hdr-elapsed", Static).update(elapsed_str)
+        self._update_last_spotted_bar()
+
+    @work(exclusive=True, group="self-spot-poll")
+    async def _poll_spots_for_self(self) -> None:
+        """Fetch current POTA spots and find the most recent one for our callsign."""
+        from potatui.pota_api import fetch_spots
+        spots = await fetch_spots(self.config.pota_api_base)
+        my_call = self.session.operator.upper()
+        my_spots = [s for s in spots if s.activator.upper() == my_call]
+        if not my_spots:
+            return
+
+        def _parse_spot_time(s) -> datetime:
+            try:
+                dt = datetime.fromisoformat(s.spot_time.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
+            except Exception:
+                return datetime.min.replace(tzinfo=timezone.utc)
+
+        latest = max(my_spots, key=_parse_spot_time)
+        spot_dt = _parse_spot_time(latest)
+        self._last_spot_data = (spot_dt, latest.spotter, latest.comments)
+        self._update_last_spotted_bar()
+
+    def _update_last_spotted_bar(self) -> None:
+        try:
+            bar = self.query_one("#last-spotted-bar", Static)
+        except Exception:
+            return
+        if self._last_spot_data is None:
+            bar.set_classes("hidden")
+            return
+        spot_dt, spotter, comments = self._last_spot_data
+        now = datetime.now(timezone.utc)
+        age_min = int((now - spot_dt).total_seconds() / 60)
+        if age_min < 60:
+            age_str = f"{age_min}m ago"
+        else:
+            age_str = f"{age_min // 60}h {age_min % 60}m ago"
+        text = f" Last spotted {age_str} by {spotter}"
+        if comments:
+            text += f"  —  {comments}"
+        bar.update(text)
+        if age_min < 15:
+            bar.set_classes("spot-recent")
+        elif age_min < 30:
+            bar.set_classes("spot-stale")
+        else:
+            bar.set_classes("spot-old")
 
     @work(exclusive=True, group="flrig-poll")
     async def _poll_flrig(self) -> None:
