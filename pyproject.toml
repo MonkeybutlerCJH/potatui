@@ -13,6 +13,7 @@ dependencies = [
     "textual>=0.60",
     "httpx>=0.25",
     "platformdirs>=4.0",
+    "python-dotenv>=1.0",
     "tomli>=2.0; python_version < '3.11'",
 ]
 
@@ -21,3 +22,6 @@ potatui = "potatui.main:run"
 
 [tool.hatch.build.targets.wheel]
 packages = ["potatui"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"potatui/resources/default_config.toml" = "potatui/resources/default_config.toml"

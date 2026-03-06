@@ -1,0 +1,100 @@
+# ============================================================
+#  Potatui configuration
+#
+#  Edit this file to pre-populate the activation setup screen.
+#  All fields are optional — Potatui will still run without
+#  them, but you will be prompted to fill things in manually.
+# ============================================================
+
+
+# ── Operator ────────────────────────────────────────────────
+[operator]
+
+# Your station callsign.  Used in ADIF exports and self-spots.
+callsign = ""
+
+# Maidenhead grid square (4 or 6 characters, e.g. "EN34" or "EN34ab").
+grid = ""
+
+# Distance units shown in the QRZ callsign info strip: "mi" or "km"
+distance_unit = "mi"
+
+
+# ── QRZ Lookup ──────────────────────────────────────────────
+# Optional.  Enables callsign info strip and name auto-fill.
+# For better security, set POTATUI_QRZ_USERNAME and POTATUI_QRZ_PASSWORD
+# in CONFIG_DIR/.env instead of storing credentials here.
+[qrz]
+
+username = ""
+password = ""
+api_url = "https://xmldata.qrz.com/xml/current/"
+
+
+# ── Log Files ───────────────────────────────────────────────
+[logs]
+
+# Directory where ADIF (.adi) and session (.json) files are saved.
+# Tilde expansion is supported.
+dir = "~/potatui-logs"
+
+
+# ── Rig ─────────────────────────────────────────────────────
+[rig]
+
+# Free-text rig description written to the ADIF file.
+# Example: "Icom IC-7300", "Elecraft KX3", "Yaesu FT-710"
+name = ""
+
+# Free-text antenna description written to the ADIF file.
+# Example: "EFHW", "Dipole", "Vertical"
+antenna = ""
+
+# Transmit power in watts — written to the session log.
+power_w = 100
+
+
+# ── flrig Connection ────────────────────────────────────────
+# flrig provides frequency and mode readout via XML-RPC.
+# Start flrig before launching pota-log.  If flrig is not
+# running the app works normally — radio fields just show "---".
+[flrig]
+
+host = "localhost"
+port = 12345
+
+
+# ── Voice Keyer ─────────────────────────────────────────────
+# CAT commands forwarded to the rig via flrig's rig.cat_string
+# method.  Press F7 in the logger to open the voice keyer panel,
+# then press 1-5 to fire a message.
+#
+# These commands are rig-specific.  Common examples:
+#   Yaesu FT-710 / FT-991A / FT-DX series:  PB01; through PB05;
+#   Icom (voice keyer varies by model — check your manual)
+#   Kenwood (check your manual for the DVR playback command)
+#
+# Leave a slot empty ("") to disable that button in the panel.
+[voice_keyer]
+
+vk1 = "PB01;"
+vk2 = "PB02;"
+vk3 = "PB03;"
+vk4 = "PB04;"
+vk5 = "PB05;"
+
+
+# ── POTA API ────────────────────────────────────────────────
+# You should not need to change this unless you are testing
+# against a non-production POTA server.
+[pota]
+
+api_base = "https://api.pota.app"
+
+
+# ── App ─────────────────────────────────────────────────────
+[app]
+
+# Textual theme name.  Changed automatically when you switch
+# themes with the command palette (Ctrl+backslash).
+theme = "nord"

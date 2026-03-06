@@ -112,6 +112,15 @@ The config file is created automatically on first launch. Its location is platfo
 
 You can edit it by hand at any time, or press **F8** from the setup or logger screen to open the in-app settings editor.
 
+**QRZ credentials (optional):** To keep usernames and passwords out of the config file, create a `.env` file in the same directory as `config.toml` (e.g. `~/.config/potatui/.env` on Linux) with:
+
+```
+POTATUI_QRZ_USERNAME=your_qrz_username
+POTATUI_QRZ_PASSWORD=your_qrz_password
+```
+
+If these are set, they override any `[qrz]` username/password in `config.toml` and are not written back when you save settings. Existing TOML-based credentials still work unchanged.
+
 ```toml
 [operator]
 callsign       = "W1AW"
@@ -281,7 +290,7 @@ When a callsign is entered in the logger, Potatui queries QRZ for the operator's
 - Results are cached for the session — no duplicate API calls.
 - The strip is hidden silently if QRZ credentials are not configured.
 
-**Requirements:** a QRZ account with an active XML data subscription. Enter credentials in **Settings (F8)**.
+**Requirements:** a QRZ account with an active XML data subscription. Enter credentials in **Settings (F8)**, or use a `.env` file in the config directory (see [Configuration](#configuration)) so they are not stored in `config.toml`.
 
 **Distance units:** miles by default. Change to kilometres in Settings or by editing `distance_unit` in the config file.
 
