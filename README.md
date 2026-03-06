@@ -30,6 +30,8 @@ A terminal user interface (TUI) for logging Parks on the Air (POTA) activations.
 - Python 3.11 or newer
 - `git` (to clone the repo)
 
+**Note:** Potatui includes launcher scripts (`run.sh`, `run.ps1`, `run.cmd`) that automatically handle the virtual environment. You only need to activate the venv during initial setup — after that, just run the launcher script.
+
 ---
 
 ### Linux / macOS
@@ -42,7 +44,7 @@ cd potatui
 # 2. Create a virtual environment
 python3 -m venv .venv
 
-# 3. Activate it
+# 3. Activate it (one-time setup only)
 source .venv/bin/activate        # bash/zsh
 # source .venv/bin/activate.fish  # fish shell
 
@@ -50,16 +52,17 @@ source .venv/bin/activate        # bash/zsh
 pip install -e .
 
 # 5. Run it
-potatui
+./run.sh
 ```
 
-To run again in a future session:
+To run again in a future session (no activation needed):
 
 ```bash
 cd potatui
-source .venv/bin/activate   # or activate.fish
-potatui
+./run.sh
 ```
+
+The `run.sh` launcher script automatically uses the virtual environment without requiring manual activation.
 
 ---
 
@@ -73,7 +76,7 @@ cd potatui
 # 2. Create a virtual environment
 python -m venv .venv
 
-# 3. Activate it
+# 3. Activate it (one-time setup only)
 .venv\Scripts\Activate.ps1
 
 # If you get a script execution error, run this first (once):
@@ -83,16 +86,19 @@ python -m venv .venv
 pip install -e .
 
 # 5. Run it
-potatui
+.\run.ps1
 ```
 
-To run again in a future session:
+To run again in a future session (no activation needed):
 
 ```powershell
 cd potatui
-.venv\Scripts\Activate.ps1
-potatui
+.\run.ps1
 ```
+
+**Alternative for Command Prompt users:** Use `run.cmd` instead of `run.ps1`.
+
+The launcher scripts automatically use the virtual environment without requiring manual activation.
 
 > **Windows terminal note:** Potatui works best in **Windows Terminal** (the modern one from the Microsoft Store). The legacy `cmd.exe` console has limited colour and Unicode support and is not recommended.
 
