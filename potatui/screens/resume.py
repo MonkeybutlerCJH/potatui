@@ -91,8 +91,7 @@ class ResumeScreen(Screen):
     }
 
     DataTable {
-        height: auto;
-        max-height: 20;
+        height: 15;
         margin-bottom: 1;
     }
 
