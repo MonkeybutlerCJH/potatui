@@ -2,19 +2,43 @@
 
 from __future__ import annotations
 
+import colorsys
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
+from rich.text import Text
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal
 from textual.screen import Screen
-from textual.widgets import Button, DataTable, Footer, Header, Static
+from textual.widget import Widget
+from textual.widgets import Button, DataTable, Footer, Static
 
 from potatui.config import Config
 from potatui.session import Session
+
+LOGO_LINES = [
+    "██████╗  ██████╗ ████████╗ █████╗ ████████╗██╗   ██╗██╗",
+    "██╔══██╗██╔═══██╗╚══██╔══╝██╔══██╗╚══██╔══╝██║   ██║██║",
+    "██████╔╝██║   ██║   ██║   ███████║   ██║   ██║   ██║██║",
+    "██╔═══╝ ██║   ██║   ██║   ██╔══██║   ██║   ██║   ██║██║",
+    "██║     ╚██████╔╝   ██║   ██║  ██║   ██║   ╚██████╔╝██║",
+    "╚═╝      ╚═════╝    ╚═╝   ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝",
+]
+SUBTITLE = "P a r k s  O n  T h e  A i r  ·  T U I  L o g g e r"
+
+_WAVE_BARS = "▁▂▃▄▅▆▇█"
+_WAVE_WIDTH = 57  # matches logo width
+
+
+def _hsl_hex(h_deg: float, s_pct: float, l_pct: float) -> str:
+    """Convert HSL to a Rich-compatible hex color string."""
+    # colorsys uses HLS order (hue, lightness, saturation)
+    r, g, b = colorsys.hls_to_rgb(h_deg / 360.0, l_pct / 100.0, s_pct / 100.0)
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
 @dataclass
@@ -55,6 +79,78 @@ def find_saved_sessions(log_dir: Path) -> list[SavedSessionMeta]:
     return sessions
 
 
+class AnimatedLogo(Widget):
+    """Block-character POTATUI logo with a sweeping color-wave animation."""
+
+    DEFAULT_CSS = """
+    AnimatedLogo {
+        width: 57;
+        height: auto;
+    }
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._frame: int = 0
+
+    def on_mount(self) -> None:
+        self.set_interval(1 / 15, self._tick)
+
+    def _tick(self) -> None:
+        self._frame += 1
+        self.refresh()
+
+    def render(self) -> Text:
+        text = Text(no_wrap=True)
+        f = self._frame
+
+        # --- Logo ---
+        for row, line in enumerate(LOGO_LINES):
+            for x, ch in enumerate(line):
+                if ch == " ":
+                    text.append(" ")
+                    continue
+                # Wave sweeps left-to-right; hue oscillates green↔cyan
+                wave = x * 0.28 - f * 0.18
+                hue = 140.0 + 40.0 * math.sin(wave)          # 100°–180°
+                light = 50.0 + 18.0 * math.sin(wave * 0.7 + row * 0.4)  # 32%–68%
+                text.append(ch, style=_hsl_hex(hue, 85.0, light))
+            text.append("\n")
+
+        # --- Plasma sine wave visualiser ---
+        # Three rows, each a sum of three sines at different speeds/frequencies.
+        # The row index shifts the phase of the middle sine, making each row
+        # look distinct while still being part of a coherent moving pattern.
+        t = f / 15.0  # frame counter → seconds at 15 fps
+        text.append("\n")
+        for row in range(3):
+            r = row / 2.0  # 0.0, 0.5, 1.0
+            for i in range(_WAVE_WIDTH):
+                x = i / _WAVE_WIDTH
+                # Interference of three sines → complex, organic shape
+                v = (
+                    math.sin(x * math.pi * 4 + t * 3.0) * 0.50
+                    + math.sin(x * math.pi * 7 + t * 1.7 + r * math.pi) * 0.30
+                    + math.sin((x + r * 0.3) * math.pi * 2 + t * 5.0) * 0.20
+                )
+                h = (v + 1.0) / 2.0  # normalise to 0..1
+                bar = _WAVE_BARS[int(h * (len(_WAVE_BARS) - 1))]
+                # Hue flows left-to-right and shifts over time; crests are more cyan
+                hue = 145.0 + 55.0 * math.sin(x * math.pi * 3 + t * 2.0 - h * 0.8)
+                light = 26.0 + 46.0 * h   # dark troughs, bright crests
+                sat = 78.0 + 17.0 * h     # crests are more saturated
+                text.append(bar, style=_hsl_hex(hue, sat, light))
+            text.append("\n")
+
+        # --- Subtitle with a slow brightness pulse ---
+        text.append("\n")
+        pulse = 0.55 + 0.35 * math.sin(f * 0.08)
+        grey = int(pulse * 200)
+        text.append(SUBTITLE, style=f"#{grey:02x}{grey:02x}{grey:02x}")
+
+        return text
+
+
 class ResumeScreen(Screen):
     """Shown on startup when saved sessions exist."""
 
@@ -65,14 +161,31 @@ class ResumeScreen(Screen):
 
     CSS = """
     ResumeScreen {
+        layout: vertical;
+        background: $surface-darken-1;
+    }
+
+    #main-horizontal {
+        height: 1fr;
+        width: 100%;
+    }
+
+    #logo-panel {
+        width: 67;
+        height: 100%;
         align: center middle;
     }
 
-    #resume-container {
-        width: 80;
+    #right-area {
+        width: 1fr;
+        height: 100%;
+        align: center middle;
+    }
+
+    #session-panel {
+        width: 56;
         height: auto;
-        max-height: 90vh;
-        border: solid $primary;
+        border: double $primary;
         background: $surface;
         padding: 1 2;
     }
@@ -91,7 +204,7 @@ class ResumeScreen(Screen):
     }
 
     DataTable {
-        height: 15;
+        height: 12;
         margin-bottom: 1;
     }
 
@@ -108,17 +221,20 @@ class ResumeScreen(Screen):
         self.sessions = sessions
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
-        with Container(id="resume-container"):
-            yield Static("Resume Activation", id="resume-title")
-            yield Static(
-                "Select a session to resume, or start a new activation.",
-                id="resume-subtitle",
-            )
-            yield DataTable(id="session-table", cursor_type="row")
-            with Horizontal(id="btn-row"):
-                yield Button("Resume Selected", variant="primary", id="btn-resume")
-                yield Button("New Activation", id="btn-new")
+        with Horizontal(id="main-horizontal"):
+            with Container(id="logo-panel"):
+                yield AnimatedLogo()
+            with Container(id="right-area"):
+                with Container(id="session-panel"):
+                    yield Static("Resume Activation", id="resume-title")
+                    yield Static(
+                        "Select a session to resume, or start a new activation.",
+                        id="resume-subtitle",
+                    )
+                    yield DataTable(id="session-table", cursor_type="row")
+                    with Horizontal(id="btn-row"):
+                        yield Button("Resume Selected", variant="primary", id="btn-resume")
+                        yield Button("New Activation", id="btn-new")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -164,7 +280,6 @@ class ResumeScreen(Screen):
 
         from potatui.screens.logger import LoggerScreen
 
-        # Restore freq/mode from last QSO if available
         freq_khz = 14200.0
         mode = "SSB"
         if session.qsos:
