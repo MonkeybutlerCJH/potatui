@@ -686,7 +686,7 @@ class LoggerScreen(Screen):
         Binding("ctrl+d", "delete_qso", "Del QSO"),
         Binding("f9", "qrz_backfill", "QRZ Backfill"),
         Binding("escape", "clear_form", "Clear QSO"),
-        Binding("ctrl+o", "change_operator", "Op"),
+        Binding("ctrl+o", "change_operator", "Operator change"),
     ]
 
     CSS = """
