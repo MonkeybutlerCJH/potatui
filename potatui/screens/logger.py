@@ -1162,13 +1162,13 @@ class LoggerScreen(Screen):
             net_widget.remove_class("net-online")
             net_widget.remove_class("net-unknown")
 
-    def _add_qso_row(self, qso: QSO) -> None:
+    def _add_qso_row(self, qso: QSO, display_num: int) -> None:
         table = self.query_one("#qso-table", DataTable)
         freq_str = f"{qso.freq_khz:.1f}"
         name = qso.name[:30] + "…" if len(qso.name) > 30 else qso.name
         notes = qso.notes[:20] + "…" if len(qso.notes) > 20 else qso.notes
         row = (
-            str(qso.qso_id),
+            str(display_num),
             qso.timestamp_utc.strftime("%H%M"),
             qso.callsign,
             qso.rst_sent,
@@ -1186,8 +1186,8 @@ class LoggerScreen(Screen):
     def _rebuild_table(self) -> None:
         table = self.query_one("#qso-table", DataTable)
         table.clear()
-        for qso in reversed(self.session.qsos):
-            self._add_qso_row(qso)
+        for i, qso in enumerate(reversed(self.session.qsos), 1):
+            self._add_qso_row(qso, len(self.session.qsos) - i + 1)
 
     def _save_session(self) -> None:
         try:

@@ -45,6 +45,7 @@ def _hsl_hex(h_deg: float, s_pct: float, l_pct: float) -> str:
 class SavedSessionMeta:
     path: Path
     operator: str
+    station_callsign: str
     park_refs: list[str]
     start_time: str
     qso_count: int
@@ -67,9 +68,11 @@ def find_saved_sessions(log_dir: Path) -> list[SavedSessionMeta]:
         try:
             with open(p) as f:
                 data = json.load(f)
+            operator = data.get("operator", "?")
             sessions.append(SavedSessionMeta(
                 path=p,
-                operator=data.get("operator", "?"),
+                operator=operator,
+                station_callsign=data.get("station_callsign", operator),
                 park_refs=data.get("park_refs", []),
                 start_time=data.get("start_time", ""),
                 qso_count=len(data.get("qsos", [])),
@@ -239,12 +242,13 @@ class ResumeScreen(Screen):
 
     def on_mount(self) -> None:
         table = self.query_one("#session-table", DataTable)
-        table.add_columns("Date", "Operator", "Parks", "QSOs")
+        table.add_columns("Date", "Operator", "Station", "Parks", "QSOs")
         for meta in self.sessions:
             parks = ", ".join(meta.park_refs)
             table.add_row(
                 meta.display_date,
                 meta.operator,
+                meta.station_callsign,
                 parks,
                 str(meta.qso_count),
             )
