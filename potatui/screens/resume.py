@@ -239,7 +239,7 @@ class ResumeScreen(Screen):
 
     def on_mount(self) -> None:
         table = self.query_one("#session-table", DataTable)
-        table.add_columns("Date", "Operator", "Parks", "QSOs", "File")
+        table.add_columns("Date", "Operator", "Parks", "QSOs")
         for meta in self.sessions:
             parks = ", ".join(meta.park_refs)
             table.add_row(
@@ -247,7 +247,6 @@ class ResumeScreen(Screen):
                 meta.operator,
                 parks,
                 str(meta.qso_count),
-                meta.path.name,
             )
         table.focus()
 
