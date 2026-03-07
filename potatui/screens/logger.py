@@ -1206,8 +1206,9 @@ class LoggerScreen(Screen):
         self._log_qso()
 
     def _log_qso(self) -> None:
-        callsign = self.query_one("#f-callsign", Input).value.strip().upper()
-        if not callsign:
+        raw_cs = self.query_one("#f-callsign", Input).value.strip().upper()
+        callsigns = [cs.strip() for cs in raw_cs.split(",") if cs.strip()]
+        if not callsigns:
             self.query_one("#f-callsign", Input).focus()
             return
 
@@ -1227,14 +1228,31 @@ class LoggerScreen(Screen):
             pass
         self._update_radio_display()
 
-        # P2P — parse comma-separated refs; one QSO per valid park ref
+        # P2P — parse comma-separated refs; one QSO per callsign × per valid park ref
         from potatui.pota_api import is_valid_park_ref
         raw_p2p = self.query_one("#f-p2p", Input).value.strip().upper()
         p2p_refs = [r.strip() for r in raw_p2p.split(",") if is_valid_park_ref(r.strip())]
 
         new_qsos: list[QSO] = []
         if p2p_refs:
-            for ref in p2p_refs:
+            for callsign in callsigns:
+                for ref in p2p_refs:
+                    new_qsos.append(self.session.add_qso(
+                        callsign=callsign,
+                        rst_sent=rst_sent,
+                        rst_rcvd=rst_rcvd,
+                        freq_khz=self.freq_khz,
+                        band=self.band,
+                        mode=self.mode,
+                        name=name,
+                        state=state,
+                        notes=notes,
+                        is_p2p=True,
+                        p2p_ref=ref,
+                        operator=self.session.operator,
+                    ))
+        else:
+            for callsign in callsigns:
                 new_qsos.append(self.session.add_qso(
                     callsign=callsign,
                     rst_sent=rst_sent,
@@ -1245,25 +1263,10 @@ class LoggerScreen(Screen):
                     name=name,
                     state=state,
                     notes=notes,
-                    is_p2p=True,
-                    p2p_ref=ref,
+                    is_p2p=False,
+                    p2p_ref="",
                     operator=self.session.operator,
                 ))
-        else:
-            new_qsos.append(self.session.add_qso(
-                callsign=callsign,
-                rst_sent=rst_sent,
-                rst_rcvd=rst_rcvd,
-                freq_khz=self.freq_khz,
-                band=self.band,
-                mode=self.mode,
-                name=name,
-                state=state,
-                notes=notes,
-                is_p2p=False,
-                p2p_ref="",
-                operator=self.session.operator,
-            ))
 
         # Rebuild table so newest QSO(s) appear at top
         self._rebuild_table()
@@ -1301,6 +1304,13 @@ class LoggerScreen(Screen):
     def on_callsign_changed(self, event: Input.Changed) -> None:
         callsign = event.value.strip().upper()
         dup_widget = self.query_one("#dup-warning", Static)
+
+        # Multi-callsign mode: suppress per-callsign QRZ and dup logic
+        if "," in callsign:
+            dup_widget.update("")
+            self._clear_qrz_info()
+            return
+
         if callsign and self.session.is_duplicate(callsign, self.band):
             dup_widget.update("DUP")
         else:
