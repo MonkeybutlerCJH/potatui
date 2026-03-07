@@ -916,7 +916,7 @@ class LoggerScreen(Screen):
     def compose(self) -> ComposeResult:
         # Header bar
         with Horizontal(id="header-bar"):
-            yield Static("", id="hdr-op", classes="hdr-item")
+            yield Static("", id="hdr-sta", classes="hdr-item")
             yield Static("|", classes="hdr-sep")
             yield Static("", id="hdr-park", classes="hdr-item")
             yield Static("|", classes="hdr-sep")
@@ -1020,7 +1020,13 @@ class LoggerScreen(Screen):
         else:
             park_display = park_ref
         self.query_one("#hdr-park", Static).update(park_display)
-        self.query_one("#hdr-op", Static).update(self.session.operator)
+        call_sta = self.session.station_callsign
+        call_op  = self.session.operator
+        if not call_op or call_op == call_sta:
+            sta_display = call_sta
+        else:
+            sta_display = f"{call_sta} ({call_op})"
+        self.query_one("#hdr-sta", Static).update(sta_display)
         self._update_radio_display()
         self._update_qso_count()
 
