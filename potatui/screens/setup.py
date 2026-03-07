@@ -282,11 +282,14 @@ class SetupScreen(Screen):
         if newly_fetched:
             self._update_state_field(refs)
 
+        state_row = self.query_one("#state-row")
         state_sel = self.query_one("#my_state", Select)
-        my_state = "" if state_sel.value is Select.BLANK else str(state_sel.value)
+        if "visible" in state_row.classes:
+            my_state = "" if state_sel.value is Select.BLANK else str(state_sel.value)
+        else:
+            my_state = ""
 
         # If the state row is visible a selection is required
-        state_row = self.query_one("#state-row")
         if "visible" in state_row.classes and not my_state:
             error.update("Select your state for this multi-state park.")
             return
