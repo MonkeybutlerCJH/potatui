@@ -205,11 +205,22 @@ class SpotsScreen(Screen):
 
     def _dist_km(self, spot: Spot) -> float | None:
         """Return distance in km from park to spot, or None if not computable."""
-        if self._park_latlon is None or not spot.grid:
+        if self._park_latlon is None:
             return None
         from potatui.qrz import grid_to_latlon, haversine_km
+        from potatui.park_db import park_db
         try:
-            slat, slon = grid_to_latlon(spot.grid)
+            # Prefer park_db (6-char grid) over spot's coarse grid4 for accuracy
+            grid = ""
+            if park_db.loaded:
+                info = park_db.lookup(spot.reference)
+                if info and info.grid:
+                    grid = info.grid
+            if not grid:
+                grid = spot.grid
+            if not grid:
+                return None
+            slat, slon = grid_to_latlon(grid)
             plat, plon = self._park_latlon
             return haversine_km(plat, plon, slat, slon)
         except Exception:
