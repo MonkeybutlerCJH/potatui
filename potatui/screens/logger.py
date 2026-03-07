@@ -1384,6 +1384,21 @@ class LoggerScreen(Screen):
             return False
         return any(c.isdigit() for c in cs) and sum(c.isalpha() for c in cs) >= 2
 
+    def format_dist_bearing(self, dist_km, brg) -> str:
+        """Format distance and bearing into a human readable string"""
+        from potatui.qrz import ( cardinal )
+        if dist_km is None or brg is None:
+            return ""
+        direction = cardinal(brg)
+        use_mi = self.config.distance_unit.lower() == "mi"
+        if use_mi:
+            dist_str = f"{dist_km * 0.621371:,.0f} mi"
+        else:
+            dist_str = f"{dist_km:,.0f} km"
+        if direction:
+            dist_str = f"{direction} {dist_str}"
+        return dist_str
+
     @work(exclusive=True, group="qrz-lookup")
     async def _lookup_qrz(self, callsign: str) -> None:
         # Debounce: wait for typing to pause before hitting QRZ
@@ -1395,7 +1410,7 @@ class LoggerScreen(Screen):
             return
 
         from potatui.qrz import (
-            bearing_deg, cardinal, distance_from_grid,
+            bearing_deg, distance_from_grid,
             grid_to_latlon, haversine_km,
         )
         bar = self.query_one("#qrz-info-bar", Static)
@@ -1454,30 +1469,15 @@ class LoggerScreen(Screen):
             plat, plon = self._park_latlon
             dist_km = haversine_km(plat, plon, clat, clon)
             brg = bearing_deg(plat, plon, clat, clon)
-            direction = cardinal(brg)
         else:
             dist_km = distance_from_grid(self.session.grid, info)
             if dist_km is not None and self.session.grid:
-                try:
-                    plat, plon = grid_to_latlon(self.session.grid)
-                    if clat is not None and clon is not None:
-                        brg = bearing_deg(plat, plon, clat, clon)
-                        direction = cardinal(brg)
-                    else:
-                        direction = None
-                except Exception:
-                    direction = None
-            else:
-                direction = None
+                plat, plon = grid_to_latlon(self.session.grid)
+                if clat is not None and clon is not None:
+                    brg = bearing_deg(plat, plon, clat, clon)
 
         if dist_km is not None:
-            use_mi = self.config.distance_unit.lower() == "mi"
-            if use_mi:
-                dist_str = f"{dist_km * 0.621371:,.0f} mi"
-            else:
-                dist_str = f"{dist_km:,.0f} km"
-            if direction:
-                dist_str = f"{direction} {dist_str}"
+            dist_str = self.format_dist_bearing(dist_km, brg)
             parts.append(dist_str)
 
         bar.set_classes("")
@@ -1531,6 +1531,7 @@ class LoggerScreen(Screen):
     @work(exclusive=True, group="p2p-lookup")
     async def _lookup_p2p_park(self, refs: list[str], raw: str) -> None:
         from potatui.pota_api import lookup_park
+        from potatui.qrz import (bearing_deg, haversine_km)
         self._set_p2p_info(f"  P2P: {', '.join(refs)} — looking up…", warn=False)
 
         results = [(ref, await lookup_park(ref, self.config.pota_api_base)) for ref in refs]
@@ -1545,7 +1546,18 @@ class LoggerScreen(Screen):
         has_error = False
         for ref, info in results:
             if info:
-                segments.append(f"{info.reference}  {info.name}  ({info.location})")
+                segments.append(info.reference)
+                segments.append(info.name)
+                segments.append(info.location)
+                segments.append(f"Grid: {info.grid}")
+
+                plat, plon = self._park_latlon
+                dist_km = haversine_km(plat, plon, info.lat, info.lon)
+                brg = bearing_deg(plat, plon, info.lat, info.lon)
+                if dist_km is not None:
+                    dist_str = self.format_dist_bearing(dist_km, brg)
+                    segments.append(dist_str)
+
                 if first_state is None and info.state:
                     first_state = info.state
             else:
