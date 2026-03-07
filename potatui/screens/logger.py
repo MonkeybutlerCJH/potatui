@@ -1327,6 +1327,11 @@ class LoggerScreen(Screen):
         # Debounce: wait for typing to pause before hitting QRZ
         await asyncio.sleep(1.0)
 
+        # Stale-check: if the form callsign changed while we were waiting, bail out
+        current_cs = self.query_one("#f-callsign", Input).value.strip().upper()
+        if current_cs != callsign:
+            return
+
         from potatui.qrz import (
             bearing_deg, cardinal, distance_from_grid,
             grid_to_latlon, haversine_km,
@@ -1341,6 +1346,11 @@ class LoggerScreen(Screen):
         bar.update("  QRZ: looking up…")
 
         info = await self._qrz.lookup(callsign)
+
+        # Stale-check again after the HTTP round-trip
+        current_cs = self.query_one("#f-callsign", Input).value.strip().upper()
+        if current_cs != callsign:
+            return
 
         if info is None:
             bar.set_classes("notfound")
