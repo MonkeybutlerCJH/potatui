@@ -1465,6 +1465,8 @@ class LoggerScreen(Screen):
                 pass
 
         # Distance and direction from park
+        dist_km: float | None = None
+        brg: float | None = None
         if self._park_latlon is not None and clat is not None and clon is not None:
             plat, plon = self._park_latlon
             dist_km = haversine_km(plat, plon, clat, clon)
@@ -1472,9 +1474,12 @@ class LoggerScreen(Screen):
         else:
             dist_km = distance_from_grid(self.session.grid, info)
             if dist_km is not None and self.session.grid:
-                plat, plon = grid_to_latlon(self.session.grid)
-                if clat is not None and clon is not None:
-                    brg = bearing_deg(plat, plon, clat, clon)
+                try:
+                    plat, plon = grid_to_latlon(self.session.grid)
+                    if clat is not None and clon is not None:
+                        brg = bearing_deg(plat, plon, clat, clon)
+                except Exception:
+                    pass
 
         if dist_km is not None:
             dist_str = self.format_dist_bearing(dist_km, brg)
@@ -1551,12 +1556,13 @@ class LoggerScreen(Screen):
                 segments.append(info.location)
                 segments.append(f"Grid: {info.grid}")
 
-                plat, plon = self._park_latlon
-                dist_km = haversine_km(plat, plon, info.lat, info.lon)
-                brg = bearing_deg(plat, plon, info.lat, info.lon)
-                if dist_km is not None:
+                if self._park_latlon is not None and info.lat is not None and info.lon is not None:
+                    plat, plon = self._park_latlon
+                    dist_km = haversine_km(plat, plon, info.lat, info.lon)
+                    brg = bearing_deg(plat, plon, info.lat, info.lon)
                     dist_str = self.format_dist_bearing(dist_km, brg)
-                    segments.append(dist_str)
+                    if dist_str:
+                        segments.append(dist_str)
 
                 if first_state is None and info.state:
                     first_state = info.state
