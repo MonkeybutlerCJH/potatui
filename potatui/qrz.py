@@ -231,11 +231,15 @@ def grid_to_latlon(grid: str) -> tuple[float, float]:
     g = grid.upper()
     if len(g) < 4:
         raise ValueError(f"Grid too short: {grid}")
-    lon = (ord(g[0]) - ord("A")) * 20 - 180 + int(g[2]) * 2 + 1.0
-    lat = (ord(g[1]) - ord("A")) * 10 - 90 + int(g[3]) * 1 + 0.5
+    lon = (ord(g[0]) - ord("A")) * 20 - 180 + int(g[2]) * 2
+    lat = (ord(g[1]) - ord("A")) * 10 - 90 + int(g[3]) * 1
     if len(g) >= 6:
         lon += (ord(g[4].lower()) - ord("a")) * (2.0 / 24) + (1.0 / 24)
         lat += (ord(g[5].lower()) - ord("a")) * (1.0 / 24) + (1.0 / 48)
+    else:
+        # move to center of grid
+        lon += 1.0;
+        lat += 0.5;
     return lat, lon
 
 
