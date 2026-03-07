@@ -12,6 +12,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import Screen
 from textual.widgets import (
+    Checkbox,
     DataTable,
     Footer,
     Label,
@@ -65,6 +66,8 @@ class SpotsScreen(Screen):
     _saved_band: str = "All"
     _saved_mode: str = "All"
     _saved_sort: str = "distance"
+    _saved_qrt: bool = True
+    _saved_qsy: bool = True
 
     CSS = """
     SpotsScreen {
@@ -112,6 +115,13 @@ class SpotsScreen(Screen):
     .sort-label {
         padding-top: 1;
         width: 6;
+        color: $text-muted;
+    }
+
+    .filter-out-label {
+        padding-top: 1;
+        padding-left: 1;
+        width: 12;
         color: $text-muted;
     }
 
@@ -168,6 +178,9 @@ class SpotsScreen(Screen):
             yield Select(MODE_FILTER_OPTIONS, value=SpotsScreen._saved_mode, id="mode-filter")
             yield Label("Sort:", classes="sort-label")
             yield Select(SORT_OPTIONS, value=SpotsScreen._saved_sort, id="sort-select")
+            yield Label("Filter out:", classes="filter-out-label")
+            yield Checkbox("QRT", value=SpotsScreen._saved_qrt, id="qrt-filter")
+            yield Checkbox("QSY", value=SpotsScreen._saved_qsy, id="qsy-filter")
 
         yield Static("", id="error-msg")
         yield DataTable(id="spots-table", cursor_type="row")
@@ -252,6 +265,8 @@ class SpotsScreen(Screen):
         band_sel = self.query_one("#band-filter", Select)
         mode_sel = self.query_one("#mode-filter", Select)
         sort_sel = self.query_one("#sort-select", Select)
+        qrt_filt = self.query_one("#qrt-filter", Checkbox).value
+        qsy_filt = self.query_one("#qsy-filter", Checkbox).value
 
         band_filter = str(band_sel.value) if band_sel.value != Select.BLANK else "All"
         mode_filter = str(mode_sel.value) if mode_sel.value != Select.BLANK else "All"
@@ -261,12 +276,18 @@ class SpotsScreen(Screen):
         SpotsScreen._saved_band = band_filter
         SpotsScreen._saved_mode = mode_filter
         SpotsScreen._saved_sort = sort_by
+        SpotsScreen._saved_qrt = qrt_filt
+        SpotsScreen._saved_qsy = qsy_filt
 
         filtered = self._spots
         if band_filter != "All":
             filtered = [s for s in filtered if s.band == band_filter]
         if mode_filter != "All":
             filtered = [s for s in filtered if s.mode.upper() == mode_filter.upper()]
+        if qsy_filt:
+            filtered = [s for s in filtered if "QSY".casefold() not in s.comments.casefold()]
+        if qrt_filt:
+            filtered = [s for s in filtered if "QRT".casefold() not in s.comments.casefold()]
 
         # Sort
         if sort_by == "distance":
@@ -319,6 +340,8 @@ class SpotsScreen(Screen):
     @on(Select.Changed, "#band-filter")
     @on(Select.Changed, "#mode-filter")
     @on(Select.Changed, "#sort-select")
+    @on(Checkbox.Changed, "#qrt-filter")
+    @on(Checkbox.Changed, "#qsy-filter")
     def on_filter_changed(self) -> None:
         self._apply_filters()
 
