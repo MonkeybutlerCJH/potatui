@@ -928,7 +928,7 @@ class LoggerScreen(Screen):
         with Horizontal(id="entry-form"):
             with Vertical(classes="form-field"):
                 yield Label("Callsign", classes="form-label")
-                yield Input(placeholder="W1AW", id="f-callsign")
+                yield Input(placeholder="W1AW, N3XYZ", id="f-callsign")
                 yield Static("", id="dup-warning")
             with Vertical(classes="form-field", id="rst-sent-field"):
                 yield Label("RST Snt", classes="form-label")
