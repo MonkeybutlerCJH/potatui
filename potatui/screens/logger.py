@@ -747,9 +747,15 @@ class LoggerScreen(Screen):
     #entry-form {
         height: auto;
         background: $surface-darken-1;
-        padding: 1;
-        layout: horizontal;
+        padding: 1 1 0 1;
+        layout: vertical;
         border-bottom: solid $primary-darken-2;
+    }
+
+    #entry-row1, #entry-row2 {
+        height: auto;
+        layout: horizontal;
+        margin-bottom: 1;
     }
 
     .form-field {
@@ -774,7 +780,7 @@ class LoggerScreen(Screen):
     }
 
     #callsign-field {
-        width: 22;
+        width: 36;
     }
 
     #p2p-field {
@@ -791,6 +797,14 @@ class LoggerScreen(Screen):
 
     #state-field {
         width: 14;
+    }
+
+    #name-field {
+        width: 28;
+    }
+
+    #notes-field {
+        width: 1fr;
     }
 
     #qrz-info-bar {
@@ -937,36 +951,38 @@ class LoggerScreen(Screen):
         # Last-spotted bar (hidden until a spot is found)
         yield Static("", id="last-spotted-bar", classes="hidden")
 
-        # Entry form
-        with Horizontal(id="entry-form"):
-            with Vertical(classes="form-field", id="callsign-field"):
-                yield Label("Callsign", classes="form-label")
-                yield Input(placeholder="W1AW,NV3Y", id="f-callsign")
-                yield Static("", id="dup-warning")
-            with Vertical(classes="form-field", id="rst-sent-field"):
-                yield Label("RST Snt", classes="form-label")
-                yield Input(value=_rst_default(self.mode), id="f-rst-sent", max_length=3, select_on_focus=False)
-            with Vertical(classes="form-field", id="rst-rcvd-field"):
-                yield Label("RST Rcv", classes="form-label")
-                yield Input(value=_rst_default(self.mode), id="f-rst-rcvd", max_length=3, select_on_focus=False)
-            with Vertical(classes="form-field", id="p2p-field"):
-                yield Label("P2P Park", classes="form-label")
-                yield Input(value="US-", id="f-p2p", select_on_focus=False)
-            with Vertical(classes="form-field"):
-                yield Label("Name", classes="form-label")
-                yield Input(placeholder="optional", id="f-name")
-            with Vertical(classes="form-field", id="state-field"):
-                yield Label("State/Loc", classes="form-label")
-                yield Input(placeholder="optional", id="f-state")
-            with Vertical(classes="form-field"):
-                yield Label("Notes", classes="form-label")
-                yield Input(placeholder="optional", id="f-notes")
-            with Vertical(classes="form-field", id="freq-field"):
-                yield Label("Freq (kHz)", classes="form-label")
-                yield Input(value=f"{self.freq_khz:.1f}", id="f-freq", max_length=10)
-            with Vertical(classes="form-field"):
-                yield Label(" ", classes="form-label")
-                yield Button("Log [Enter]", variant="primary", id="btn-log")
+        # Entry form (two rows)
+        with Vertical(id="entry-form"):
+            with Horizontal(id="entry-row1"):
+                with Vertical(classes="form-field", id="callsign-field"):
+                    yield Label("Callsign", classes="form-label")
+                    yield Input(placeholder="W1AW,NV3Y", id="f-callsign")
+                    yield Static("", id="dup-warning")
+                with Vertical(classes="form-field", id="rst-sent-field"):
+                    yield Label("RST Snt", classes="form-label")
+                    yield Input(value=_rst_default(self.mode), id="f-rst-sent", max_length=3, select_on_focus=False)
+                with Vertical(classes="form-field", id="rst-rcvd-field"):
+                    yield Label("RST Rcv", classes="form-label")
+                    yield Input(value=_rst_default(self.mode), id="f-rst-rcvd", max_length=3, select_on_focus=False)
+                with Vertical(classes="form-field", id="p2p-field"):
+                    yield Label("P2P Park", classes="form-label")
+                    yield Input(value="US-", id="f-p2p", select_on_focus=False)
+                with Vertical(classes="form-field", id="freq-field"):
+                    yield Label("Freq (kHz)", classes="form-label")
+                    yield Input(value=f"{self.freq_khz:.1f}", id="f-freq", max_length=10)
+                with Vertical(classes="form-field"):
+                    yield Label(" ", classes="form-label")
+                    yield Button("Log [Enter]", variant="primary", id="btn-log")
+            with Horizontal(id="entry-row2"):
+                with Vertical(classes="form-field", id="name-field"):
+                    yield Label("Name", classes="form-label")
+                    yield Input(placeholder="optional", id="f-name")
+                with Vertical(classes="form-field", id="state-field"):
+                    yield Label("State/Loc", classes="form-label")
+                    yield Input(placeholder="optional", id="f-state")
+                with Vertical(classes="form-field", id="notes-field"):
+                    yield Label("Notes", classes="form-label")
+                    yield Input(placeholder="optional", id="f-notes")
 
         # QRZ callsign info strip (hidden when empty)
         yield Static("", id="qrz-info-bar", classes="hidden")
@@ -1563,8 +1579,8 @@ class LoggerScreen(Screen):
     # ------------------------------------------------------------------
 
     _FORM_FIELDS = [
-        "#f-callsign", "#f-rst-sent", "#f-rst-rcvd", "#f-p2p",
-        "#f-name", "#f-state", "#f-notes", "#f-freq", "#btn-log",
+        "#f-callsign", "#f-rst-sent", "#f-rst-rcvd", "#f-p2p", "#f-freq", "#btn-log",
+        "#f-name", "#f-state", "#f-notes",
     ]
 
     def on_key(self, event: events.Key) -> None:
@@ -1574,14 +1590,14 @@ class LoggerScreen(Screen):
         focused_id = f"#{focused.id}" if focused.id else None
         if focused_id not in self._FORM_FIELDS:
             return
-        if event.key == "tab" and focused_id == "#btn-log":
+        if event.key == "tab" and focused_id == "#f-notes":
             event.prevent_default()
             event.stop()
             self.query_one("#f-callsign", Input).focus()
         elif event.key == "shift+tab" and focused_id == "#f-callsign":
             event.prevent_default()
             event.stop()
-            self.query_one("#btn-log", Button).focus()
+            self.query_one("#f-notes", Input).focus()
 
     # ------------------------------------------------------------------
     # Actions
