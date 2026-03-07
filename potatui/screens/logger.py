@@ -777,16 +777,20 @@ class LoggerScreen(Screen):
         width: 14;
     }
 
+    #callsign-field {
+        width: 22;
+    }
+
     #p2p-field {
-        width: 32;
+        width: 26;
     }
 
     #rst-sent-field {
-        width: 11;
+        width: 10;
     }
 
     #rst-rcvd-field {
-        width: 11;
+        width: 10;
     }
 
     #state-field {
@@ -939,7 +943,7 @@ class LoggerScreen(Screen):
 
         # Entry form
         with Horizontal(id="entry-form"):
-            with Vertical(classes="form-field"):
+            with Vertical(classes="form-field", id="callsign-field"):
                 yield Label("Callsign", classes="form-label")
                 yield Input(placeholder="W1AW,NV3Y", id="f-callsign")
                 yield Static("", id="dup-warning")
