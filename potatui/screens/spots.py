@@ -154,6 +154,7 @@ class SpotsScreen(Screen):
         self._session = session
         self._spots: list[Spot] = []
         self._filtered: list[Spot] = []
+        self._park_grid_cache: dict[str, str] = {}  # ref → grid6 from park_db or API
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="spots-header"):
@@ -198,26 +199,38 @@ class SpotsScreen(Screen):
             return
 
         self._spots = spots
+        await self._prefetch_park_grids(spots)
         self._apply_filters()
 
         now_str = datetime.utcnow().strftime("%H:%Mz")
         self.query_one("#last-refresh", Static).update(f"Updated: {now_str}")
+
+    async def _prefetch_park_grids(self, spots: list[Spot]) -> None:
+        """Populate _park_grid_cache for all unique spot park references.
+
+        Checks park_db first (instant dict lookup); falls back to the POTA park
+        API (grid6) for any refs not found locally.
+        """
+        import asyncio
+        from potatui.pota_api import lookup_park
+
+        refs = list({s.reference for s in spots if s.reference})
+
+        async def _get_grid(ref: str) -> tuple[str, str]:
+            info = await lookup_park(ref, self.config.pota_api_base)
+            return ref, (info.grid if info and info.grid else "")
+
+        results = await asyncio.gather(*[_get_grid(r) for r in refs])
+        self._park_grid_cache = {ref: grid for ref, grid in results if grid}
 
     def _dist_km(self, spot: Spot) -> float | None:
         """Return distance in km from park to spot, or None if not computable."""
         if self._park_latlon is None:
             return None
         from potatui.qrz import grid_to_latlon, haversine_km
-        from potatui.park_db import park_db
         try:
-            # Prefer park_db (6-char grid) over spot's coarse grid4 for accuracy
-            grid = ""
-            if park_db.loaded:
-                info = park_db.lookup(spot.reference)
-                if info and info.grid:
-                    grid = info.grid
-            if not grid:
-                grid = spot.grid
+            # Priority: park_grid_cache (park_db grid6 or API grid6) → spot's own grid field
+            grid = self._park_grid_cache.get(spot.reference, "") or spot.grid
             if not grid:
                 return None
             slat, slon = grid_to_latlon(grid)

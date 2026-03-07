@@ -132,7 +132,7 @@ async def fetch_spots(base_url: str) -> list[Spot]:
                             spot_time=item.get("spotTime", ""),
                             comments=item.get("comments", ""),
                             location=location.strip(),
-                            grid=item.get("grid4", item.get("grid6", "")),
+                            grid=item.get("grid6", item.get("grid4", "")),
                         )
                     )
                 except Exception:
