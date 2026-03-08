@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from rich.text import Text
-from textual import on
+from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal
@@ -252,14 +252,21 @@ class ResumeScreen(Screen):
         meta = self.sessions[row_idx]
         self._load_and_launch(meta)
 
-    def _load_and_launch(self, meta: SavedSessionMeta) -> None:
+    @work
+    async def _load_and_launch(self, meta: SavedSessionMeta) -> None:
         try:
             session = Session.load_json(str(meta.path))
         except Exception as e:
             self.notify(f"Failed to load session: {e}", severity="error")
             return
 
+        from potatui.pota_api import lookup_park
         from potatui.screens.logger import LoggerScreen
+
+        park_names: dict[str, str] = {}
+        for ref in session.park_refs:
+            info = await lookup_park(ref, self.config.pota_api_base)
+            park_names[ref] = info.name if info else ""
 
         freq_khz = 14200.0
         mode = "SSB"
@@ -276,7 +283,7 @@ class ResumeScreen(Screen):
             LoggerScreen(
                 session=session,
                 config=self.config,
-                park_names={ref: "" for ref in session.park_refs},
+                park_names=park_names,
                 freq_khz=freq_khz,
                 mode=mode,
             )

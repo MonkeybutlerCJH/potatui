@@ -1245,6 +1245,8 @@ class LoggerScreen(Screen):
         park_name = self.park_names.get(park_ref, "")
         # Only append name if it's non-empty and different from the ref itself
         if park_name and park_name != park_ref:
+            if len(park_name) > 25:
+                park_name = park_name[:25].rstrip() + "…"
             park_display = f"{park_ref}  {park_name}"
         else:
             park_display = park_ref
