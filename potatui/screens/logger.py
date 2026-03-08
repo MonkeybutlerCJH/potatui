@@ -663,6 +663,10 @@ class ChangeOperatorModal(ModalScreen):
     def on_cancel(self) -> None:
         self.dismiss(None)
 
+    def on_key(self, event) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+
 
 # ---------------------------------------------------------------------------
 # Main Logger Screen
