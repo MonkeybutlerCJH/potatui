@@ -1516,8 +1516,12 @@ class LoggerScreen(Screen):
             if not multi or not self._qrz.configured:
                 return form_name, form_state
             info = await self._qrz.lookup(callsign)
-            name = form_name or (info.name if info else "") or ""
-            state = form_state or (info.state if info else "") or ""
+            # Ignore form values that were QRZ-auto-filled for a previous callsign;
+            # only use them if the user manually typed them.
+            user_name = "" if self._qrz_filled_name else form_name
+            user_state = "" if self._qrz_filled_state else form_state
+            name = user_name or (info.name if info else "") or ""
+            state = user_state or (info.state if info else "") or ""
             return name, state
 
         new_qsos: list[QSO] = []
