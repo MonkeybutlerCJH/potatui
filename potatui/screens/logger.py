@@ -1802,13 +1802,13 @@ class LoggerScreen(Screen):
 
     def action_delete_qso(self) -> None:
         table = self.query_one("#qso-table", DataTable)
-        row_key = table.cursor_row
-        if row_key is None:
+        cursor_index = table.cursor_row
+        if cursor_index is None:
             return
-        # Get QSO id from the first column of the selected row
+        # Row keys are set to str(qso.qso_id) — retrieve by cursor index
         try:
-            row_data = table.get_row_at(row_key)
-            qso_id = int(row_data[0])
+            row_key = list(table.rows)[cursor_index]
+            qso_id = int(row_key.value)
         except Exception:
             return
 
