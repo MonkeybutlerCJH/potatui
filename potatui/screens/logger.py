@@ -809,10 +809,10 @@ class LoggerScreen(Screen):
 
     #qrz-info-bar {
         height: 3;
-        background: #0d0d0d;
+        background: $surface;
         border: round $accent;
         padding: 0 2;
-        color: $accent;
+        color: $text;
         text-style: bold;
         content-align: left middle;
     }
@@ -822,7 +822,7 @@ class LoggerScreen(Screen):
     }
 
     #qrz-info-bar.pending {
-        color: $accent-darken-2;
+        color: $text-muted;
         text-style: italic;
         border: round $accent-darken-2;
     }
@@ -835,10 +835,10 @@ class LoggerScreen(Screen):
 
     #p2p-info-bar {
         height: 3;
-        background: #0d0d0d;
+        background: $surface;
         border: round $accent;
         padding: 0 2;
-        color: $accent;
+        color: $text;
         text-style: bold;
         content-align: left middle;
     }
