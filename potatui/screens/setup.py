@@ -13,9 +13,11 @@ from textual.widgets import (
     Header,
     Input,
     Label,
+    OptionList,
     Select,
     Static,
 )
+from textual.widgets.option_list import Option as OptionListOption
 
 from potatui.config import Config
 from potatui.pota_api import is_valid_park_ref, lookup_park
@@ -82,6 +84,17 @@ class SetupScreen(Screen):
         display: block;
     }
 
+    #park-suggestions {
+        display: none;
+        margin-left: 18;
+        max-height: 10;
+        border: solid $primary-darken-2;
+    }
+
+    #park-suggestions.visible {
+        display: block;
+    }
+
     #error-msg {
         color: $error;
         height: auto;
@@ -95,13 +108,14 @@ class SetupScreen(Screen):
     }
     """
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, dismissable: bool = False) -> None:
         super().__init__()
         self.config = config
+        self._dismissable = dismissable
         self._park_names: dict[str, str] = {}       # ref → name
         self._park_infos: dict[str, object] = {}    # ref → ParkInfo (for multi-state detection)
         self._user_edited_grid: bool = False         # True once user types in grid field
-        self._auto_filling_grid: bool = False        # True during programmatic grid fill
+        self._auto_fill_pending: int = 0             # counts in-flight programmatic grid fills
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -120,10 +134,11 @@ class SetupScreen(Screen):
             with Horizontal(classes="field-row"):
                 yield Label("Park Ref(s):", classes="field-label")
                 yield Input(
-                    placeholder="US-1234 or US-1234,US-5678",
+                    placeholder="Type to search, US-1234, or US-1234,US-6789",
                     id="park_refs",
                     classes="field-input",
                 )
+            yield OptionList(id="park-suggestions")
             yield Static("", id="park-lookup")
 
             with Horizontal(classes="field-row"):
@@ -179,8 +194,20 @@ class SetupScreen(Screen):
 
     @on(Input.Changed, "#grid_sq")
     def on_grid_sq_changed(self, event: Input.Changed) -> None:
-        if not self._auto_filling_grid:
+        if self._auto_fill_pending > 0:
+            self._auto_fill_pending -= 1
+        else:
             self._user_edited_grid = True
+
+    @staticmethod
+    def _active_segment(value: str) -> str:
+        """Return the segment currently being typed (text after the last comma)."""
+        return value.split(",")[-1].strip()
+
+    def _hide_suggestions(self) -> None:
+        suggestions = self.query_one("#park-suggestions", OptionList)
+        suggestions.remove_class("visible")
+        suggestions.clear_options()
 
     @on(Input.Changed, "#park_refs")
     def on_park_refs_changed(self, event: Input.Changed) -> None:
@@ -190,6 +217,17 @@ class SetupScreen(Screen):
             self._lookup_parks(valid_refs)
         else:
             self.query_one("#park-lookup", Static).update("")
+
+        # Suggestion logic: search by name/ref when typing something that isn't a valid ref yet
+        segment = self._active_segment(event.value)
+        if len(segment) < 2 or is_valid_park_ref(segment):
+            self._hide_suggestions()
+            return
+        from potatui.park_db import park_db
+        if not park_db.loaded:
+            self._hide_suggestions()
+            return
+        self._search_parks(segment)
 
     @work(exclusive=True)
     async def _lookup_parks(self, refs: list[str]) -> None:
@@ -207,10 +245,70 @@ class SetupScreen(Screen):
         # Auto-fill grid from first park if user hasn't overridden it
         if not self._user_edited_grid and refs:
             first_info = self._park_infos.get(refs[0])
-            if first_info and getattr(first_info, "grid", ""):
-                self._auto_filling_grid = True
-                self.query_one("#grid_sq", Input).value = first_info.grid
-                self._auto_filling_grid = False
+            self._auto_fill_pending += 1
+            self.query_one("#grid_sq", Input).value = (
+                first_info.grid if first_info and getattr(first_info, "grid", "") else ""
+            )
+
+    @work(exclusive=True)
+    async def _search_parks(self, query: str) -> None:
+        import asyncio
+        from potatui.park_db import park_db
+        results = await asyncio.to_thread(park_db.search_parks, query, 15)
+        suggestions = self.query_one("#park-suggestions", OptionList)
+        if not results:
+            self._hide_suggestions()
+            return
+        suggestions.clear_options()
+        for p in results:
+            suggestions.add_option(OptionListOption(f"{p.name}  ({p.reference})", id=p.reference))
+        suggestions.add_class("visible")
+
+    @on(OptionList.OptionSelected, "#park-suggestions")
+    def on_park_suggestion_selected(self, event: OptionList.OptionSelected) -> None:
+        ref = event.option.id
+        if not ref:
+            return
+        park_input = self.query_one("#park_refs", Input)
+        current = park_input.value
+        if "," in current:
+            prefix = current.rsplit(",", 1)[0] + ","
+            new_value = prefix + ref
+        else:
+            new_value = ref
+        park_input.value = new_value
+        self._hide_suggestions()
+        park_input.focus()
+
+    def on_key(self, event) -> None:
+        focused = self.focused
+        if focused is None:
+            return
+        suggestions = self.query_one("#park-suggestions", OptionList)
+        visible = "visible" in suggestions.classes
+
+        if getattr(focused, "id", None) == "park_refs":
+            if event.key == "down" and visible:
+                event.prevent_default()
+                event.stop()
+                suggestions.focus()
+            elif event.key == "escape":
+                event.prevent_default()
+                event.stop()
+                if visible:
+                    self._hide_suggestions()
+                elif self._dismissable:
+                    self.dismiss()
+        elif getattr(focused, "id", None) == "park-suggestions":
+            if event.key == "escape":
+                event.prevent_default()
+                event.stop()
+                self._hide_suggestions()
+                self.query_one("#park_refs", Input).focus()
+        elif event.key == "escape" and self._dismissable and not visible:
+            event.prevent_default()
+            event.stop()
+            self.dismiss()
 
     def _update_state_field(self, refs: list[str]) -> None:
         """Show the state dropdown if any looked-up park spans multiple states."""

@@ -80,6 +80,19 @@ class ParkDb:
         """Return ParkInfo for a reference, or None if not found."""
         return self._parks.get(ref.strip().upper())
 
+    def search_parks(self, query: str, limit: int = 15) -> list["ParkInfo"]:
+        """Search by name substring or ref prefix (case-insensitive). Runs synchronously."""
+        if not self._parks or not query:
+            return []
+        q = query.strip().lower()
+        results: list["ParkInfo"] = []
+        for park in self._parks.values():
+            if q in park.name.lower() or park.reference.lower().startswith(q):
+                results.append(park)
+                if len(results) >= limit:
+                    break
+        return results
+
     @property
     def loaded(self) -> bool:
         return bool(self._parks)

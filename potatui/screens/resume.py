@@ -291,4 +291,4 @@ class ResumeScreen(Screen):
 
     def action_new_activation(self) -> None:
         from potatui.screens.setup import SetupScreen
-        self.app.push_screen(SetupScreen(self.config))
+        self.app.push_screen(SetupScreen(self.config, dismissable=True))
