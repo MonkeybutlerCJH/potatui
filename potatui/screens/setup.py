@@ -100,6 +100,8 @@ class SetupScreen(Screen):
         self.config = config
         self._park_names: dict[str, str] = {}       # ref → name
         self._park_infos: dict[str, object] = {}    # ref → ParkInfo (for multi-state detection)
+        self._user_edited_grid: bool = False         # True once user types in grid field
+        self._auto_filling_grid: bool = False        # True during programmatic grid fill
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -123,6 +125,14 @@ class SetupScreen(Screen):
                     classes="field-input",
                 )
             yield Static("", id="park-lookup")
+
+            with Horizontal(classes="field-row"):
+                yield Label("Grid Square:", classes="field-label")
+                yield Input(
+                    placeholder="auto-filled from park",
+                    id="grid_sq",
+                    classes="field-input",
+                )
 
             with Horizontal(classes="field-row"):
                 yield Label("Power (W):", classes="field-label")
@@ -167,6 +177,11 @@ class SetupScreen(Screen):
 
         yield Footer()
 
+    @on(Input.Changed, "#grid_sq")
+    def on_grid_sq_changed(self, event: Input.Changed) -> None:
+        if not self._auto_filling_grid:
+            self._user_edited_grid = True
+
     @on(Input.Changed, "#park_refs")
     def on_park_refs_changed(self, event: Input.Changed) -> None:
         refs = [r.strip().upper() for r in event.value.split(",") if r.strip()]
@@ -189,6 +204,13 @@ class SetupScreen(Screen):
             parts.append(f"{ref}: {self._park_names[ref]}")
         display.update("  |  ".join(parts))
         self._update_state_field(refs)
+        # Auto-fill grid from first park if user hasn't overridden it
+        if not self._user_edited_grid and refs:
+            first_info = self._park_infos.get(refs[0])
+            if first_info and getattr(first_info, "grid", ""):
+                self._auto_filling_grid = True
+                self.query_one("#grid_sq", Input).value = first_info.grid
+                self._auto_filling_grid = False
 
     def _update_state_field(self, refs: list[str]) -> None:
         """Show the state dropdown if any looked-up park spans multiple states."""
@@ -228,6 +250,7 @@ class SetupScreen(Screen):
 
         callsign = self.query_one("#callsign", Input).value.strip().upper()
         park_refs_raw = self.query_one("#park_refs", Input).value.strip()
+        grid_sq = self.query_one("#grid_sq", Input).value.strip().upper()
         power_str = self.query_one("#power_w", Input).value.strip()
         rig = self.query_one("#rig", Input).value.strip()
         antenna = self.query_one("#antenna", Input).value.strip()
@@ -250,13 +273,14 @@ class SetupScreen(Screen):
         except ValueError:
             power_w = self.config.power_w
 
-        self._validate_and_launch(callsign, refs, power_w, rig, antenna)
+        self._validate_and_launch(callsign, refs, grid_sq, power_w, rig, antenna)
 
     @work(exclusive=True)
     async def _validate_and_launch(
         self,
         callsign: str,
         refs: list[str],
+        grid_sq: str,
         power_w: int,
         rig: str,
         antenna: str,
@@ -299,7 +323,7 @@ class SetupScreen(Screen):
             station_callsign=callsign,
             park_refs=refs,
             active_park_ref=refs[0],
-            grid="",
+            grid=grid_sq,
             rig=rig,
             antenna=antenna,
             power_w=power_w,

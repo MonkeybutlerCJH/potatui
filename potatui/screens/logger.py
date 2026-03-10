@@ -1223,9 +1223,20 @@ class LoggerScreen(Screen):
 
     @work
     async def _fetch_park_location(self) -> None:
-        """Fetch the active park's lat/lon from the POTA API for distance calculations."""
-        from potatui.pota_api import lookup_park
+        """Fetch the active park's lat/lon for distance calculations.
+
+        If the user specified a grid at activation setup (session.grid), that
+        takes priority — it reflects their actual operating position within the park.
+        Falls back to the park's lat/lon from the POTA API/local DB.
+        """
         from potatui.qrz import grid_to_latlon
+        if self.session.grid:
+            try:
+                self._park_latlon = grid_to_latlon(self.session.grid)
+                return
+            except Exception:
+                pass
+        from potatui.pota_api import lookup_park
         info = await lookup_park(self.session.active_park_ref, self.config.pota_api_base)
         if info:
             if info.lat is not None and info.lon is not None:
