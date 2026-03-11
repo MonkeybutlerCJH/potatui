@@ -881,6 +881,7 @@ class LoggerScreen(Screen):
         Binding("f3", "mode_picker", "Mode"),
         Binding("f4", "edit_last_qso", "Edit QSOs"),
         Binding("f5", "goto_spots", "Spots"),
+        Binding("ctrl+s", "goto_spots", "Spots", show=False),
         Binding("f6", "self_spot", "Self-Spot"),
         Binding("f7", "voice_keyer", "VK Panel"),
         Binding("f8", "settings", "Settings"),
