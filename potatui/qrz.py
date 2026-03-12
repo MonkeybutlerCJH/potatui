@@ -198,7 +198,9 @@ class QRZClient:
 
             fname = t("fname")
             lname = t("name")
-            name = f"{fname} {lname}".strip() if (fname or lname) else ""
+            nickname = t("nickname")
+            first = nickname if nickname else fname
+            name = f"{first} {lname}".strip() if (first or lname) else ""
 
             lat_s = t("lat")
             lon_s = t("lon")
