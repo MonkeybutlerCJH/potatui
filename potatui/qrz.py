@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Copyright (c) 2026 MonkeybutlerCJH (https://github.com/MonkeybutlerCJH)
+
 """QRZ XML data API client — callsign lookup with name, location, distance."""
 
 from __future__ import annotations

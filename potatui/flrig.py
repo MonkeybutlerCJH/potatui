@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Copyright (c) 2026 MonkeybutlerCJH (https://github.com/MonkeybutlerCJH)
+
 """flrig XML-RPC client for frequency and mode control."""
 
 from __future__ import annotations

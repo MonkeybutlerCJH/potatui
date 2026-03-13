@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Copyright (c) 2026 MonkeybutlerCJH (https://github.com/MonkeybutlerCJH)
+
 """Modal for downloading / refreshing the local POTA park database."""
 
 from __future__ import annotations
