@@ -72,7 +72,8 @@ class SpotsScreen(Screen):
     _saved_mode: str = "All"
     _saved_sort: str = "distance"
     _saved_qrt: bool = True
-    _saved_qsy: bool = True
+    _saved_qsy: bool = False
+    _saved_worked: bool = True
     _saved_search: str = ""
 
     CSS = """
@@ -209,6 +210,7 @@ class SpotsScreen(Screen):
             yield Label("Filter out:", classes="filter-out-label")
             yield Checkbox("QRT", value=SpotsScreen._saved_qrt, id="qrt-filter")
             yield Checkbox("QSY", value=SpotsScreen._saved_qsy, id="qsy-filter")
+            yield Checkbox("Worked", value=SpotsScreen._saved_worked, id="worked-filter")
 
         with Horizontal(id="search-bar"):
             yield Label("Search:", classes="search-label")
@@ -325,6 +327,7 @@ class SpotsScreen(Screen):
         sort_sel = self.query_one("#sort-select", Select)
         qrt_filt = self.query_one("#qrt-filter", Checkbox).value
         qsy_filt = self.query_one("#qsy-filter", Checkbox).value
+        worked_filt = self.query_one("#worked-filter", Checkbox).value
 
         band_filter = str(band_sel.value) if band_sel.value != Select.BLANK else "All"
         mode_filter = str(mode_sel.value) if mode_sel.value != Select.BLANK else "All"
@@ -336,6 +339,7 @@ class SpotsScreen(Screen):
         SpotsScreen._saved_sort = sort_by
         SpotsScreen._saved_qrt = qrt_filt
         SpotsScreen._saved_qsy = qsy_filt
+        SpotsScreen._saved_worked = worked_filt
 
         filtered = self._spots
         if band_filter != "All":
@@ -346,6 +350,9 @@ class SpotsScreen(Screen):
             filtered = [s for s in filtered if "QSY".casefold() not in s.comments.casefold()]
         if qrt_filt:
             filtered = [s for s in filtered if "QRT".casefold() not in s.comments.casefold()]
+        if worked_filt:
+            worked = self._worked_callsigns()
+            filtered = [s for s in filtered if s.activator.upper() not in worked]
 
         search = SpotsScreen._saved_search.strip().casefold()
         if search:
@@ -410,6 +417,7 @@ class SpotsScreen(Screen):
     @on(Select.Changed, "#sort-select")
     @on(Checkbox.Changed, "#qrt-filter")
     @on(Checkbox.Changed, "#qsy-filter")
+    @on(Checkbox.Changed, "#worked-filter")
     def on_filter_changed(self) -> None:
         self._apply_filters()
 
