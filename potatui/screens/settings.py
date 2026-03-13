@@ -168,17 +168,6 @@ class SettingsScreen(Screen):
                     yield Input(value=str(self.config.flrig_port), placeholder="12345", id="s-flrig-port", classes="field-input")
                 yield Static("Start flrig before launching pota-log. Leave defaults if running locally.", classes="field-hint")
 
-                # ── Voice Keyer ─────────────────────────────────────────
-                yield Static("Voice Keyer", classes="section-heading")
-                yield Static("─" * 60, classes="section-rule")
-                yield Static("CAT commands sent to your rig via flrig (F7 to open panel). Rig-specific — check your manual.", classes="field-hint")
-
-                for i in range(1, 6):
-                    val = getattr(self.config, f"vk{i}")
-                    with Horizontal(classes="field-row"):
-                        yield Label(f"VK{i}:", classes="field-label")
-                        yield Input(value=val, placeholder=f"PB0{i};", id=f"s-vk{i}", classes="field-input")
-
                 # ── QRZ ─────────────────────────────────────────────────
                 yield Static("QRZ (Optional)", classes="section-heading")
                 yield Static("─" * 60, classes="section-rule")
@@ -236,8 +225,6 @@ class SettingsScreen(Screen):
         except ValueError:
             return "flrig port must be a number (e.g. 12345)."
 
-        vk = [self.query_one(f"#s-vk{i}", Input).value for i in range(1, 6)]
-
         cfg = Config(
             callsign=callsign,
             grid=self.config.grid,  # preserved from existing config, no longer editable in UI
@@ -251,7 +238,9 @@ class SettingsScreen(Screen):
             qrz_username=qrz_user,
             qrz_password=qrz_pass,
             qrz_api_url=qrz_url,
-            vk1=vk[0], vk2=vk[1], vk3=vk[2], vk4=vk[3], vk5=vk[4],
+            # vk1–vk5 preserved as-is; commands are now managed via the Commander (F7).
+            vk1=self.config.vk1, vk2=self.config.vk2, vk3=self.config.vk3,
+            vk4=self.config.vk4, vk5=self.config.vk5,
             pota_api_base=self.config.pota_api_base,
         )
         return cfg

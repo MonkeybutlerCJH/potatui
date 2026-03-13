@@ -531,95 +531,7 @@ class QrzLogModal(ModalScreen[None]):
             self.dismiss(None)
 
 
-# ---------------------------------------------------------------------------
-# Voice keyer modal
-# ---------------------------------------------------------------------------
-
-class VoiceKeyerModal(ModalScreen[None]):
-    CSS = """
-    VoiceKeyerModal { align: center middle; }
-    #vk-box {
-        width: 44;
-        height: auto;
-        border: solid $primary;
-        background: $surface;
-        padding: 1 2;
-    }
-    #vk-title {
-        text-align: center;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    #vk-subtitle {
-        text-align: center;
-        color: $text-muted;
-        margin-bottom: 1;
-    }
-    .vk-btn {
-        width: 1fr;
-        margin-bottom: 1;
-    }
-    .vk-btn-disabled {
-        width: 1fr;
-        margin-bottom: 1;
-    }
-    #vk-status {
-        text-align: center;
-        height: 1;
-        margin-top: 1;
-    }
-    """
-
-    def __init__(self, vk_commands: list[str], flrig: "FlrigClient") -> None:
-        super().__init__()
-        self._commands = vk_commands
-        self._flrig = flrig
-
-    def compose(self) -> ComposeResult:
-        with Container(id="vk-box"):
-            yield Static("Voice Keyer", id="vk-title")
-            yield Static("Press 1–5 or click a button", id="vk-subtitle")
-            for i, cmd in enumerate(self._commands, start=1):
-                label = f"[{i}]  VK{i}  {cmd}" if cmd else f"[{i}]  VK{i}  (not configured)"
-                btn = Button(label, id=f"vk-btn-{i}", classes="vk-btn", disabled=not cmd)
-                yield btn
-            yield Static("", id="vk-status")
-
-    def on_key(self, event) -> None:
-        if event.key == "escape":
-            self.dismiss(None)
-            return
-        if event.key.isdigit():
-            idx = int(event.key)
-            if 1 <= idx <= 5:
-                event.stop()
-                self._fire(idx)
-
-    @on(Button.Pressed)
-    def on_btn_pressed(self, event: Button.Pressed) -> None:
-        btn_id = event.button.id or ""
-        if btn_id.startswith("vk-btn-"):
-            idx = int(btn_id.split("-")[-1])
-            self._fire(idx)
-
-    def _fire(self, idx: int) -> None:
-        cmd = self._commands[idx - 1] if idx <= len(self._commands) else ""
-        if not cmd:
-            self._set_status(f"VK{idx} not configured", error=True)
-            return
-        ok = self._flrig.send_cat_string(cmd)
-        if ok:
-            self._set_status(f"VK{idx} fired  ({cmd})", error=False)
-        else:
-            self._set_status("flrig not connected", error=True)
-
-    def _set_status(self, msg: str, error: bool) -> None:
-        status = self.query_one("#vk-status", Static)
-        status.update(msg)
-        if error:
-            status.styles.color = "red"
-        else:
-            status.styles.color = "green"
+# (VoiceKeyerModal removed — replaced by CommanderModal in screens/commander.py)
 
 
 # ---------------------------------------------------------------------------
@@ -886,9 +798,8 @@ class LoggerScreen(Screen):
         Binding("f5", "goto_spots", "Spots"),
         Binding("ctrl+s", "goto_spots", "Spots", show=False),
         Binding("f6", "self_spot", "Self-Spot"),
-        Binding("f7", "voice_keyer", "VK Panel"),
+        Binding("f7", "commander", "Commander"),
         Binding("f8", "settings", "Settings"),
-        Binding("ctrl+v", "vk1", "VK1", show=False, priority=True),
         Binding("f10", "end_session", "End Session"),
         Binding("ctrl+d", "delete_qso", "Del QSO"),
         Binding("f9", "qrz_backfill", "QRZ Backfill"),
@@ -1123,6 +1034,9 @@ class LoggerScreen(Screen):
         self.park_names = park_names
         self.flrig = FlrigClient(config.flrig_host, config.flrig_port)
         self._flrig_online = False
+        from potatui.commands import CommandConfig, load_commands
+        legacy_vk = [config.vk1, config.vk2, config.vk3, config.vk4, config.vk5]
+        self._cmd_config: CommandConfig = load_commands(legacy_vk)
         from potatui.qrz import QRZClient
         self._qrz = QRZClient(config.qrz_username, config.qrz_password, config.qrz_api_url)
         self._park_latlon: tuple[float, float] | None = None
@@ -1884,6 +1798,20 @@ class LoggerScreen(Screen):
     ]
 
     def on_key(self, event: events.Key) -> None:
+        # ── Command slot shortcuts ──────────────────────────────────────
+        key = event.key.lower()
+        for i, slot in enumerate(self._cmd_config.cat_slots, 1):
+            if slot.shortcut and slot.shortcut.lower() == key and slot.command:
+                event.stop()
+                self._fire_cat_slot(slot.label or f"CAT {i}", slot.command)
+                return
+        for i, slot in enumerate(self._cmd_config.console_slots, 1):
+            if slot.shortcut and slot.shortcut.lower() == key and slot.command:
+                event.stop()
+                self._fire_console_slot(slot.label or f"Console {i}", slot.command)
+                return
+
+        # ── Tab-wrap within the entry form ─────────────────────────────
         focused = self.focused
         if focused is None:
             return
@@ -2021,26 +1949,37 @@ class LoggerScreen(Screen):
             )
         )
 
-    def _fire_vk(self, idx: int) -> None:
-        """Fire voice keyer slot idx (1–5) and show a notification."""
-        commands = [self.config.vk1, self.config.vk2, self.config.vk3,
-                    self.config.vk4, self.config.vk5]
-        cmd = commands[idx - 1] if idx <= len(commands) else ""
-        if not cmd:
-            self.notify(f"VK{idx} not configured", severity="warning")
-            return
+    def _fire_cat_slot(self, label: str, cmd: str) -> None:
         ok = self.flrig.send_cat_string(cmd)
         if ok:
-            self.notify(f"VK{idx}  {cmd}", severity="information")
+            self.notify(f"{label}  ({cmd})", severity="information")
         else:
             self.notify("flrig not connected", severity="error")
 
-    def action_vk1(self) -> None: self._fire_vk(1)
+    @work(thread=True)
+    def _fire_console_slot(self, label: str, cmd: str) -> None:
+        import subprocess
+        try:
+            result = subprocess.run(  # noqa: S602
+                cmd, shell=True, capture_output=True, text=True, timeout=30
+            )
+            if result.returncode == 0:
+                self.app.call_from_thread(
+                    self.notify, f"{label} OK", severity="information"
+                )
+            else:
+                err = (result.stderr or "").strip() or f"exit {result.returncode}"
+                self.app.call_from_thread(
+                    self.notify, f"{label} failed: {err[:30]}", severity="error"
+                )
+        except subprocess.TimeoutExpired:
+            self.app.call_from_thread(self.notify, f"{label} timed out", severity="error")
+        except Exception as e:
+            self.app.call_from_thread(self.notify, f"Error: {e}", severity="error")
 
-    def action_voice_keyer(self) -> None:
-        cfg = self.config
-        commands = [cfg.vk1, cfg.vk2, cfg.vk3, cfg.vk4, cfg.vk5]
-        self.app.push_screen(VoiceKeyerModal(commands, self.flrig))
+    def action_commander(self) -> None:
+        from potatui.screens.commander import CommanderModal
+        self.app.push_screen(CommanderModal(self._cmd_config, self.flrig))
 
     def action_settings(self) -> None:
         from potatui.screens.settings import SettingsScreen
