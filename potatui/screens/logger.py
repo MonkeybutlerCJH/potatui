@@ -513,6 +513,74 @@ class SelfSpotModal(ModalScreen[None]):
 
 
 # ---------------------------------------------------------------------------
+# WAWA Easter Egg Modal
+# ---------------------------------------------------------------------------
+
+class WawaModal(ModalScreen[None]):
+    """Easter egg: show nearest Wawa when user types WAWA as callsign."""
+
+    CSS = """
+    WawaModal {
+        align: center middle;
+    }
+    #wawa-box {
+        width: 52;
+        height: auto;
+        border: heavy $warning;
+        background: $surface;
+        padding: 1 2;
+    }
+    #wawa-art {
+        text-align: center;
+        color: $warning;
+        margin-bottom: 1;
+    }
+    #wawa-address {
+        text-align: center;
+        color: $text;
+        margin-bottom: 1;
+    }
+    #wawa-distance {
+        text-align: center;
+        color: $text-muted;
+        text-style: italic;
+        margin-bottom: 1;
+    }
+    #wawa-btn-row {
+        height: auto;
+        align: center middle;
+        margin-top: 1;
+    }
+    """
+
+    def __init__(self, grid: str, use_miles: bool = True) -> None:
+        super().__init__()
+        self._grid = grid
+        self._use_miles = use_miles
+
+    def compose(self) -> ComposeResult:
+        from potatui.wawa import WAWA_ASCII, find_nearest_wawa
+
+        address, distance = find_nearest_wawa(self._grid, self._use_miles)
+        unit = "mi" if self._use_miles else "km"
+
+        with Container(id="wawa-box"):
+            yield Static(WAWA_ASCII, id="wawa-art")
+            yield Static(address, id="wawa-address")
+            yield Static(f"{distance:,.1f} {unit} away", id="wawa-distance")
+            with Horizontal(id="wawa-btn-row"):
+                yield Button("Nice!", variant="warning", id="wawa-close")
+
+    @on(Button.Pressed, "#wawa-close")
+    def on_close(self) -> None:
+        self.dismiss(None)
+
+    def on_key(self, event) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+
+
+# ---------------------------------------------------------------------------
 # Set Run Frequency Modal
 # ---------------------------------------------------------------------------
 
@@ -1233,6 +1301,16 @@ class LoggerScreen(Screen):
     @on(Input.Changed, "#f-callsign")
     def on_callsign_changed(self, event: Input.Changed) -> None:
         callsign = event.value.strip().upper()
+
+        # Easter egg: WAWA triggers the hoagie modal
+        if callsign == "WAWA":
+            use_miles = self.config.distance_unit.lower() == "mi"
+            self.app.push_screen(
+                WawaModal(self.session.grid, use_miles),
+                callback=self._after_wawa,
+            )
+            return
+
         dup_widget = self.query_one("#dup-warning", Static)
         if callsign and self.session.is_duplicate(callsign, self.band):
             dup_widget.update("DUP")
@@ -1247,6 +1325,11 @@ class LoggerScreen(Screen):
             if not callsign:
                 self.query_one("#f-name", Input).value = ""
                 self.query_one("#f-state", Input).value = ""
+
+    def _after_wawa(self, _result: object = None) -> None:
+        """Clear callsign field after dismissing the Wawa modal."""
+        self.query_one("#f-callsign", Input).value = ""
+        self.query_one("#f-callsign", Input).focus()
 
     @staticmethod
     def _looks_like_callsign(cs: str) -> bool:
