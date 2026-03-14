@@ -182,6 +182,10 @@ class EditQSOModal(ModalScreen[dict | None]):
                 yield Button("Save", variant="primary", id="e-save")
                 yield Button("Cancel", id="e-cancel")
 
+    @on(Input.Submitted)
+    def on_input_submitted(self) -> None:
+        self.on_save()
+
     @on(Button.Pressed, "#e-save")
     def on_save(self) -> None:
         try:
