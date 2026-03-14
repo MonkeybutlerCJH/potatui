@@ -1018,6 +1018,14 @@ class LoggerScreen(Screen):
         height: 1fr;
     }
 
+    #qso-table-container.rainbow-0 { border: heavy red; }
+    #qso-table-container.rainbow-1 { border: heavy darkorange; }
+    #qso-table-container.rainbow-2 { border: heavy yellow; }
+    #qso-table-container.rainbow-3 { border: heavy lime; }
+    #qso-table-container.rainbow-4 { border: heavy deepskyblue; }
+    #qso-table-container.rainbow-5 { border: heavy blue; }
+    #qso-table-container.rainbow-6 { border: heavy magenta; }
+
     """
 
     def __init__(
@@ -1047,6 +1055,7 @@ class LoggerScreen(Screen):
         self._qrz_filled_name: bool = False   # True if #f-name was auto-filled by QRZ
         self._qrz_filled_state: bool = False  # True if #f-state was auto-filled by QRZ
         self._qrz_bars: dict[str, Static] = {}  # callsign → QRZ info bar widget
+        self._celebrated_100: bool = False  # fire rainbow only once per session
         self._table_focused: bool = False  # True when QSO table has focus
         self._current_utc_date = datetime.utcnow().date()
         self._log_paths = self._make_log_paths()
@@ -1233,6 +1242,25 @@ class LoggerScreen(Screen):
         else:
             text = f"{circle} QSOs: {today_count}  {rate_str}"
         self.query_one("#hdr-qso-count", Static).update(text)
+        if total_count >= 100 and not self._celebrated_100:
+            self._celebrated_100 = True
+            self._rainbow_flash()
+
+    @work(exclusive=False)
+    async def _rainbow_flash(self) -> None:
+        """Celebrate 100 QSOs with a non-blocking rainbow border animation."""
+        self.notify("100 QSOs! 🎉", timeout=4)
+        container = self.query_one("#qso-table-container")
+        rainbow_classes = [f"rainbow-{i}" for i in range(7)]
+        steps = 28  # 4 full spectrum cycles
+        for step in range(steps):
+            cls = rainbow_classes[step % 7]
+            for old in rainbow_classes:
+                container.remove_class(old)
+            container.add_class(cls)
+            await asyncio.sleep(0.12)
+        for cls in rainbow_classes:
+            container.remove_class(cls)
 
     def _tick_clock(self) -> None:
         now = datetime.utcnow()
