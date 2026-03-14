@@ -201,6 +201,12 @@ class CommanderModal(ModalScreen[None]):
             self.query_one(f"#slot-key-{slot_type}-{idx}", Static).update(prev)
             return
 
+        if key in ("delete", "backspace"):
+            self._shortcuts[(slot_type, idx)] = ""
+            self.query_one(f"#slot-key-{slot_type}-{idx}", Static).update("—")
+            self._set_status("Cleared — click 'Save & Close' to keep it.", error=False)
+            return
+
         error = self._validate_shortcut(key, slot_type, idx)
         if error:
             prev = self._shortcuts.get((slot_type, idx), "") or "—"
@@ -260,7 +266,7 @@ class CommanderModal(ModalScreen[None]):
         self._capture_state = (slot_type, idx)
         self.query_one(f"#slot-key-{slot_type}-{idx}", Static).update("◉ …")
         self.query_one("#cmd-hint", Static).update(
-            f"Press a key for '{label}'… (Esc to cancel)"
+            f"Press a key for '{label}'… (Del to clear, Esc to cancel)"
         )
         self._set_status("", error=False)
         # Defocus all inputs so key events reach on_key instead of being typed.
