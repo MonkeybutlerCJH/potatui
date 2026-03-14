@@ -48,7 +48,7 @@ class LoggerScreen(Screen):
     BINDINGS = [
         Binding("f2", "set_freq", "Set Run Freq"),
         Binding("f3", "mode_picker", "Mode"),
-        Binding("f4", "edit_last_qso", "QSO Table"),
+        Binding("f4", "edit_last_qso", "Edit QSO"),
         Binding("f5", "goto_spots", "Spots"),
         Binding("ctrl+s", "goto_spots", "Spots", show=False),
         Binding("f6", "self_spot", "Self-Spot"),
