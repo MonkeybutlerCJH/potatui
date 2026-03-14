@@ -8,7 +8,6 @@ from __future__ import annotations
 import threading
 import xmlrpc.client
 from datetime import datetime
-from pathlib import Path
 
 
 class _TimeoutTransport(xmlrpc.client.Transport):
@@ -45,7 +44,6 @@ MODE_MAP: dict[str, str] = {
 }
 
 _LOG_MAX = 100
-_LOG_FILE = Path.home() / "potatui-flrig-debug.log"
 
 
 class FlrigClient:
@@ -72,11 +70,6 @@ class FlrigClient:
         self.log.append(entry)
         if len(self.log) > _LOG_MAX:
             self.log = self.log[-_LOG_MAX:]
-        try:
-            with _LOG_FILE.open("a") as fh:
-                fh.write(entry + "\n")
-        except Exception:
-            pass
 
     # ------------------------------------------------------------------
     # Poll proxy (1 s timeout — used for get_frequency / get_mode / set_*)
