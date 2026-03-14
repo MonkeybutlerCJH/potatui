@@ -854,3 +854,72 @@ class ChangeOperatorModal(ModalScreen):
     def on_key(self, event) -> None:
         if event.key == "escape":
             self.dismiss(None)
+
+
+# ---------------------------------------------------------------------------
+# WAWA Easter Egg Modal
+# ---------------------------------------------------------------------------
+
+
+class WawaModal(ModalScreen[None]):
+    """Easter egg: show nearest Wawa when user types WAWA as callsign."""
+
+    CSS = """
+    WawaModal {
+        align: center middle;
+    }
+    #wawa-box {
+        width: 52;
+        height: auto;
+        border: heavy $warning;
+        background: $surface;
+        padding: 1 2;
+    }
+    #wawa-art {
+        text-align: center;
+        color: $warning;
+        margin-bottom: 1;
+    }
+    #wawa-address {
+        text-align: center;
+        color: $text;
+        margin-bottom: 1;
+    }
+    #wawa-distance {
+        text-align: center;
+        color: $text-muted;
+        text-style: italic;
+        margin-bottom: 1;
+    }
+    #wawa-btn-row {
+        height: auto;
+        align: center middle;
+        margin-top: 1;
+    }
+    """
+
+    def __init__(self, grid: str, use_miles: bool = True) -> None:
+        super().__init__()
+        self._grid = grid
+        self._use_miles = use_miles
+
+    def compose(self) -> ComposeResult:
+        from potatui.wawa import WAWA_ASCII, find_nearest_wawa
+
+        address, distance = find_nearest_wawa(self._grid, self._use_miles)
+        unit = "mi" if self._use_miles else "km"
+
+        with Container(id="wawa-box"):
+            yield Static(WAWA_ASCII, id="wawa-art")
+            yield Static(address, id="wawa-address")
+            yield Static(f"{distance:,.1f} {unit} away", id="wawa-distance")
+            with Horizontal(id="wawa-btn-row"):
+                yield Button("Nice!", variant="warning", id="wawa-close")
+
+    @on(Button.Pressed, "#wawa-close")
+    def on_close(self) -> None:
+        self.dismiss(None)
+
+    def on_key(self, event) -> None:
+        if event.key == "escape":
+            self.dismiss(None)

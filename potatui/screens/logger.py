@@ -36,6 +36,7 @@ from potatui.screens.logger_modals import (
     SelfSpotModal,
     SessionSummaryModal,
     SetFreqModal,
+    WawaModal,
     _rst_default,
 )
 from potatui.session import QSO, Session
@@ -661,6 +662,16 @@ class LoggerScreen(Screen):
     @on(Input.Changed, "#f-callsign")
     def on_callsign_changed(self, event: Input.Changed) -> None:
         raw_cs = event.value.strip().upper()
+
+        # Easter egg: WAWA triggers the hoagie modal
+        if raw_cs == "WAWA":
+            use_miles = self.config.distance_unit.lower() == "mi"
+            self.app.push_screen(
+                WawaModal(self.session.grid, use_miles),
+                callback=self._after_wawa,
+            )
+            return
+
         callsigns = [cs.strip() for cs in raw_cs.split(",") if cs.strip()]
         dup_widget = self.query_one("#dup-warning", Static)
 
@@ -690,6 +701,11 @@ class LoggerScreen(Screen):
             self.query_one("#f-state", Input).value = ""
             self._qrz_filled_name = False
             self._qrz_filled_state = False
+
+    def _after_wawa(self, _result: object = None) -> None:
+        """Clear callsign field after dismissing the Wawa modal."""
+        self.query_one("#f-callsign", Input).value = ""
+        self.query_one("#f-callsign", Input).focus()
 
     @staticmethod
     def _looks_like_callsign(cs: str) -> bool:
