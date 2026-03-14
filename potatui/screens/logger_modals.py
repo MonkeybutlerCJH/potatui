@@ -306,7 +306,7 @@ class SessionSummaryModal(ModalScreen[bool]):
         text-style: bold;
         width: auto;
     }
-    #summary-files {
+    .summary-files {
         color: $text-muted;
         text-style: italic;
     }
@@ -405,8 +405,8 @@ class SessionSummaryModal(ModalScreen[bool]):
                                     yield Static(str(count), classes="breakdown-count")
 
             yield Static(rule, classes="summary-rule")
-            for path in self._log_paths:
-                yield Static(str(path), id="summary-files")
+            for i, path in enumerate(self._log_paths):
+                yield Static(str(path), id=f"summary-files-{i}", classes="summary-files")
 
             with Horizontal(id="summary-btns"):
                 yield Button("Cancel", id="summary-cancel")

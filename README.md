@@ -388,7 +388,7 @@ Files are saved to `~/potatui-logs/` by default on Linux, and `~/Documents/potat
 
 1. Go to **pota.app → My Logs → Upload**
 2. Upload the `.adi` file
-3. For multi-park activations, upload the same file once per park reference
+3. For multi-park activations, upload each park's `.adi` file separately
 
 The ADIF includes `MY_SIG=POTA`, `MY_SIG_INFO=<park ref>`, `STATION_CALLSIGN`, `OPERATOR`, `MY_STATE`, and `STATE` — all fields required by the POTA uploader.
 
