@@ -254,6 +254,8 @@ Press **F2** to open the Set Run Frequency dialog. Type the new frequency in kHz
 
 Press **F4** to move focus into the QSO log table. Use arrow keys to select any QSO, then press **Enter** to open the edit dialog. Press **Enter** in any field or click **Save** to save changes. Press **F4** or **Escape** to return to the entry form.
 
+Press **Ctrl+L** to manually run a QRZ lookup for the selected QSO and populate any missing name or state fields. To backfill QRZ data for all QSOs in the session at once, press **Ctrl+B** from anywhere on the logger screen — this runs in the background without interrupting logging.
+
 ### Changing operators
 
 Press **Ctrl+O** to open the operator change dialog. The new callsign is used for all subsequent QSOs. The station callsign (set at setup) remains unchanged and appears separately in the header. Both callsigns are written to the ADIF file.
@@ -263,6 +265,7 @@ Press **Ctrl+O** to open the operator change dialog. The new callsign is used fo
 ## Spots Screen (F5 or Ctrl+S)
 
 - Pulls live activator spots from the POTA API, refreshes every 60 seconds.
+- The filter bar is hidden by default — press `f` to toggle it.
 - Filter by band or mode using the dropdowns at the top.
 - Sort by **Distance** from your park, **Age** (newest first), or **Frequency**.
 - Check **QRT** / **QSY** to hide spots with those comments in the spot text (both on by default).
