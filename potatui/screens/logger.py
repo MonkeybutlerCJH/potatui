@@ -93,7 +93,9 @@ class LoggerScreen(Screen):
         legacy_vk = [config.vk1, config.vk2, config.vk3, config.vk4, config.vk5]
         self._cmd_config: CommandConfig = load_commands(legacy_vk)
         from potatui.qrz import QRZClient
+        from potatui.hamdb import HamDbClient
         self._qrz = QRZClient(config.qrz_username, config.qrz_password, config.qrz_api_url)
+        self._hamdb = HamDbClient()
         self._park_latlon: tuple[float, float] | None = None
         self._park_grid: str | None = None  # grid square used for MUF lookup
         self._last_spot_data: tuple[datetime, str, str] | None = None  # (utc_time, spotter, comments)
@@ -861,14 +863,16 @@ class LoggerScreen(Screen):
             haversine_km,
         )
 
-        if not self._qrz.configured:
-            bar.set_classes("qrz-info-bar hidden")
-            return
-
         bar.set_classes("qrz-info-bar pending")
-        bar.update("  QRZ: looking up…")
+        bar.update("  looking up…")
 
-        info = await self._qrz.lookup(callsign)
+        source = "QRZ"
+        info = None
+        if self._qrz.configured:
+            info = await self._qrz.lookup(callsign)
+        if info is None:
+            source = "HamDB"
+            info = await self._hamdb.lookup(callsign)
 
         # Stale-check again after the HTTP round-trip
         if callsign not in self._qrz_bars or self._qrz_bars[callsign] is not bar:
@@ -876,7 +880,7 @@ class LoggerScreen(Screen):
 
         if info is None:
             bar.set_classes("qrz-info-bar notfound")
-            bar.update(f"  QRZ: {callsign} — not found")
+            bar.update(f"  {callsign} — not found")
             self._update_qrz_indicator()
             return
 
@@ -894,7 +898,7 @@ class LoggerScreen(Screen):
                 state_inp.value = info.state
                 self._qrz_filled_state = True
 
-        parts = [f"  {info.callsign}"]
+        parts = [f"  {source}: {info.callsign}"]
         if info.name:
             parts.append(info.name)
         loc = info.location
@@ -1209,18 +1213,21 @@ class LoggerScreen(Screen):
 
     @work(exclusive=True, group="qrz-lookup-selected")
     async def action_qrz_lookup_selected(self) -> None:
-        """Ctrl+L (table mode) — QRZ lookup for the selected QSO."""
-        if not self._qrz.configured:
-            self.notify("QRZ not configured", severity="warning")
-            return
+        """Ctrl+L (table mode) — callsign lookup for the selected QSO (QRZ, or HamDB fallback)."""
         qso_id = self._qso_id_from_table_cursor()
         if qso_id is None:
             return
         qso = next((q for q in self.session.qsos if q.qso_id == qso_id), None)
         if qso is None:
             return
-        self.notify(f"QRZ: looking up {qso.callsign}…")
-        info = await self._qrz.lookup(qso.callsign)
+        self.notify(f"Looking up {qso.callsign}…")
+        source = "QRZ"
+        info = None
+        if self._qrz.configured:
+            info = await self._qrz.lookup(qso.callsign)
+        if info is None:
+            source = "HamDB"
+            info = await self._hamdb.lookup(qso.callsign)
         if info:
             state = qso.state if qso.is_p2p else (info.state or qso.state)
             self.session.update_qso(qso.qso_id, name=info.name, state=state)
@@ -1233,9 +1240,9 @@ class LoggerScreen(Screen):
                 self.notify(f"ADIF rewrite error: {e}", severity="error")
                 return
             self._update_qrz_indicator()
-            self.notify(f"QRZ: {qso.callsign} — {info.name or 'updated'}")
+            self.notify(f"{source}: {qso.callsign} — {info.name or 'updated'}")
         else:
-            self.notify(f"QRZ: {qso.callsign} — not found", severity="warning")
+            self.notify(f"{qso.callsign} — not found", severity="warning")
 
     def action_clear_form(self) -> None:
         """Escape — return focus to callsign (table mode) or clear entry form (form mode)."""
@@ -1374,18 +1381,19 @@ class LoggerScreen(Screen):
 
     @work(exclusive=True, group="qrz-backfill")
     async def action_qrz_backfill(self) -> None:
-        """Ctrl+Q — look up QRZ info for all QSOs with empty name."""
-        if not self._qrz.configured:
-            self.notify("QRZ not configured", severity="warning")
-            return
+        """Ctrl+B — look up callsign info for all QSOs with empty name (QRZ, or HamDB fallback)."""
         targets = [q for q in self.session.qsos if not q.name]
         if not targets:
             self.notify("All contacts already have names")
             return
-        self.notify(f"QRZ: looking up {len(targets)} contact(s)…")
+        self.notify(f"Looking up {len(targets)} contact(s)…")
         updated = 0
         for qso in targets:
-            info = await self._qrz.lookup(qso.callsign)
+            info = None
+            if self._qrz.configured:
+                info = await self._qrz.lookup(qso.callsign)
+            if info is None:
+                info = await self._hamdb.lookup(qso.callsign)
             if info:
                 state = qso.state if qso.is_p2p else (info.state or qso.state)
                 self.session.update_qso(qso.qso_id, name=info.name, state=state)
@@ -1399,7 +1407,7 @@ class LoggerScreen(Screen):
             self.notify(f"ADIF rewrite error: {e}", severity="error")
             return
         self._update_qrz_indicator()
-        self.notify(f"QRZ: updated {updated} of {len(targets)} contact(s)")
+        self.notify(f"Updated {updated} of {len(targets)} contact(s)")
 
     # ------------------------------------------------------------------
     # Called from SpotsScreen when user QSYs to a spot
