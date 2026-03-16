@@ -13,7 +13,7 @@ A terminal user interface (TUI) for logging Parks on the Air (POTA) activations.
 - **Offline park database** — a local copy of the full POTA parks list is downloaded on first launch and refreshed every 30 days. Park lookups work even without internet. Toggle full offline mode with Ctrl+N.
 - **Live park lookup** — park name and location shown as you type the park ref at setup. Also supports typing a park name to search by name.
 - **P2P park lookup** — dedicated P2P field does a live lookup, displays the park name and distance/bearing from your park, and auto-fills the State field with the state abbreviation.
-- **QRZ callsign lookup** — name, location, distance, and direction from your park shown automatically as you type a callsign. First name and state auto-fill. QRZ backfill (Ctrl+B) fills in missing names/states for all QSOs in a session. Requires a QRZ XML subscription.
+- **Callsign lookup** — name, location, distance, and direction from your park shown automatically as you type a callsign. First name and state auto-fill. Backfill (Ctrl+B) fills in missing names/states for all QSOs in a session. Uses QRZ XML if configured; falls back to HamDB.org (no account required) automatically.
 - **POTA spots browser** — live spot list with band/mode/sort/search filters, auto-refreshes every 60 seconds. QSY directly to a spot with one keypress (tunes flrig, pre-fills callsign and P2P park). Distance from your park shown per spot. Worked activators shown in green.
 - **Self-spotting** — post yourself to the POTA network from within the app. Your most recent spot is displayed live on the logging screen, showing who spotted you, how long ago, and any comments — colour-coded green/yellow/grey by age.
 - **Solar/space weather indicator** — live NOAA Kp geomagnetic index shown in the header. Flashes red and fires a warning toast when a geomagnetic storm alert is active. Click the pill to see Kp history, full alert text, and MUF/foF2 propagation prediction for your park's grid square (via [prop.kc2g.com](https://prop.kc2g.com/)). Polls every 10 minutes; skipped in offline mode.
@@ -203,8 +203,8 @@ The entry form has two rows. Row 1 holds the fields you fill in for every QSO; r
 
 | Field      | Notes                                                                              |
 |------------|------------------------------------------------------------------------------------|
-| Name       | Optional. Auto-filled from QRZ if credentials are configured.                      |
-| State/Loc  | Optional. Auto-filled from QRZ (2-letter state) or P2P park location.             |
+| Name       | Optional. Auto-filled from callsign lookup (QRZ or HamDB).                         |
+| State/Loc  | Optional. Auto-filled from callsign lookup (2-letter state) or P2P park location.  |
 | Notes      | Optional.                                                                          |
 
 Press **Enter** from any field to log the QSO. UTC timestamp is stamped at log time.
@@ -241,8 +241,8 @@ W1AW | US-1234 Gifford Pinchot NF | 14:32z | 14225.0 kHz  20M  SSB | ● QSOs: 4
 | Ctrl+N     | Toggle offline mode (skips all internet calls)                 |
 | Ctrl+O     | Change operator callsign                                       |
 | Ctrl+D     | Delete highlighted QSO (confirmation required)                 |
-| Ctrl+L     | QRZ lookup for selected QSO (table mode)                       |
-| Ctrl+B     | QRZ backfill — fill missing names/states for all QSOs          |
+| Ctrl+L     | Callsign lookup for selected QSO (table mode)                  |
+| Ctrl+B     | Backfill — fill missing names/states for all QSOs              |
 | Enter      | Log QSO (from entry form) / Edit QSO (from table)              |
 | Escape     | Return focus to Callsign field from QSO table                  |
 
@@ -256,7 +256,7 @@ Press **F2** to open the Set Run Frequency dialog. Type the new frequency in kHz
 
 Press **F4** to move focus into the QSO log table. Use arrow keys to select any QSO, then press **Enter** to open the edit dialog. Press **Enter** in any field or click **Save** to save changes. Press **F4** or **Escape** to return to the entry form.
 
-Press **Ctrl+L** to manually run a QRZ lookup for the selected QSO and populate any missing name or state fields. To backfill QRZ data for all QSOs in the session at once, press **Ctrl+B** from anywhere on the logger screen — this runs in the background without interrupting logging.
+Press **Ctrl+L** to manually run a callsign lookup for the selected QSO and populate any missing name or state fields. To backfill all QSOs missing a name at once, press **Ctrl+B** from anywhere on the logger screen — this runs in the background without interrupting logging.
 
 ### Changing operators
 
@@ -320,25 +320,29 @@ Commander configuration is stored separately from the main config file, at:
 
 ---
 
-## QRZ Callsign Lookup
+## Callsign Lookup
 
-When a callsign is entered in the logger, Potatui queries QRZ for the operator's name, location, and grid (after a 1-second debounce). A strip below the entry form shows:
+When a callsign is entered in the logger, Potatui looks up the operator's name, location, and grid (after a 1-second debounce). A strip below the entry form shows:
 
 ```
-  W6ABC  ·  Fred Smith  ·  Los Angeles, CA  ·  Grid: DM04  ·  NE 1,247 mi
+  QRZ: W6ABC  ·  Fred Smith  ·  Los Angeles, CA  ·  Grid: DM04  ·  NE 1,247 mi
 ```
+
+The strip prefix shows the source (`QRZ:` or `HamDB:`).
 
 - Distance is measured from your **park's location**, not your home QTH.
 - Direction is shown as a 16-point cardinal (N, NNE, NE … NW, NNW).
 - The operator's **first name** is automatically filled into the Name field if empty.
 - The operator's **state** is automatically filled into the State field if empty and no P2P park has been entered.
 - **Multi-callsign mode**: when multiple callsigns are entered (comma-separated), one lookup strip is shown per callsign. Name and state auto-fill use the respective callsign's data.
-- **Ctrl+L** — manually re-run QRZ lookup for the selected QSO (in table mode).
-- **Ctrl+B (backfill)** — when resuming a previous session, run QRZ lookup on all QSOs missing a name or state. Runs in the background without interrupting logging.
+- **Ctrl+L** — manually re-run a lookup for the selected QSO (in table mode).
+- **Ctrl+B (backfill)** — when resuming a previous session, look up all QSOs missing a name or state. Runs in the background without interrupting logging.
 - Results are cached for the session — no duplicate API calls.
-- The strip is hidden silently if QRZ credentials are not configured.
 
-**Requirements:** a QRZ account with an active XML data subscription. Enter credentials in **Settings (F8)**, or use a `.env` file in the config directory (see [Configuration](#configuration)) so they are not stored in `config.toml`.
+**Sources (tried in order):**
+
+1. **QRZ XML** — richest data. Requires a QRZ account with an active XML data subscription. Enter credentials in **Settings (F8)**, or use a `.env` file in the config directory (see [Configuration](#configuration)) so they are not stored in `config.toml`. If not configured, skipped silently.
+2. **HamDB.org** — free fallback, no account required. Used automatically when QRZ is not configured or returns no result.
 
 **Distance units:** miles by default. Change to kilometres in Settings or by editing `distance_unit` in the config file.
 
