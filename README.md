@@ -223,6 +223,7 @@ W1AW | US-1234 Gifford Pinchot NF | 14:32z | 14225.0 kHz  20M  SSB | ● QSOs: 4
 - flrig status indicator is green when connected, red when offline.
 - QRZ indicator shows whether QRZ is configured and reachable.
 - **Solar/Kp indicator** shows the current NOAA planetary K-index: green (normal, Kp < 5), yellow (elevated, Kp 5–6), red (storm, Kp ≥ 7). Flashes red when a geomagnetic storm alert is active and fires a warning toast for each new alert (looks back 24 hours on startup). Click to open a detail modal with the last 24h Kp history, alert text, and a propagation block showing the MUF (maximum usable frequency) and foF2 (F2 layer critical frequency) for your park's grid square, sourced from [prop.kc2g.com](https://prop.kc2g.com/). Shows `K:?` until the first successful poll.
+- **Early/Late Shift indicator** — shows 🌅 or 🌙 in the header when you're within a POTA Early Shift (6-hour window) or Late Shift (8-hour window) for your park. Click the emoji to see the exact UTC window. For multi-state parks, uses the official POTA state/province pin per the award rules.
 - When station callsign and operator callsign differ (after a Ctrl+O operator change), both are shown: `W1AW / NV3Y`.
 
 ### Key bindings
