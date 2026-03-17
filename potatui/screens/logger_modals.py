@@ -11,7 +11,7 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Label, ListItem, ListView, Select, Static
+from textual.widgets import Button, DataTable, Input, Label, ListItem, ListView, Select, Static
 
 from potatui.adif import freq_to_band
 from potatui.session import QSO, Session
@@ -941,9 +941,9 @@ class SolarWeatherModal(ModalScreen[None]):
         align: center middle;
     }
     #solar-box {
-        width: 64;
+        width: 72;
         height: auto;
-        max-height: 38;
+        max-height: 42;
         border: solid $primary;
         background: $surface;
         padding: 1 2;
@@ -953,33 +953,53 @@ class SolarWeatherModal(ModalScreen[None]):
         text-style: bold;
         margin-bottom: 1;
     }
-    #solar-current {
-        margin-bottom: 1;
-    }
-    #solar-prop-block {
+    #solar-conditions {
+        layout: grid;
+        grid-size: 2;
+        grid-columns: 12 1fr;
         height: auto;
-        margin-bottom: 1;
+        padding: 0 1;
+        background: $panel;
+        margin-bottom: 0;
+    }
+    .solar-label {
+        color: $text-muted;
+        height: 1;
+        padding: 0 2 0 0;
+    }
+    .solar-value {
+        height: 1;
     }
     #solar-prop-header {
-        text-style: bold;
         color: $text-muted;
+        text-style: italic;
+        margin-top: 0;
+        margin-bottom: 1;
+        padding: 0 1;
+        background: $panel;
     }
     #solar-history-label, #solar-alerts-label {
         text-style: bold;
         color: $text-muted;
         margin-top: 1;
+        margin-bottom: 0;
     }
-    #solar-scroll {
-        height: 20;
+    #solar-history-table {
+        height: 10;
+        margin-bottom: 0;
+    }
+    #solar-alerts-scroll {
+        height: auto;
+        max-height: 6;
+    }
+    .solar-alert {
+        margin-bottom: 1;
     }
     #solar-btn-row {
         height: auto;
         align: right middle;
         margin-top: 1;
     }
-    .solar-bar-normal { color: $success; }
-    .solar-bar-elevated { color: $warning; }
-    .solar-bar-storm { color: $error; }
     .solar-muted { color: $text-muted; text-style: italic; }
     """
 
@@ -995,55 +1015,53 @@ class SolarWeatherModal(ModalScreen[None]):
         data = self._data
 
         with Container(id="solar-box"):
-            yield Static("☀ Space Weather", id="solar-title")
+            yield Static("☀  Space Weather", id="solar-title")
 
-            # Current Kp + SFI
-            kp_part: str
-            if data.kp_current is None:
-                kp_part = "Kp: [dim]unknown[/dim]"
-            else:
-                sev = kp_severity(data.kp_current)
-                color = {"normal": "green", "elevated": "yellow", "storm": "red"}[sev]
-                label = {"normal": "Normal", "elevated": "Elevated", "storm": "Storm"}[sev]
-                kp_part = f"Kp: [{color}]K:{data.kp_current:.1f}[/{color}]  [{color}]{label}[/{color}]"
-            sfi_part = f"SFI: {data.sfi:.0f}" if data.sfi is not None else "SFI: [dim]unknown[/dim]"
-            yield Static(f"{kp_part}    {sfi_part}", id="solar-current")
+            # Current conditions grid
+            with Container(id="solar-conditions"):
+                if data.kp_current is None:
+                    kp_val = "[dim]unknown[/dim]"
+                else:
+                    sev = kp_severity(data.kp_current)
+                    color = {"normal": "green", "elevated": "yellow", "storm": "red"}[sev]
+                    level = {"normal": "Normal", "elevated": "Elevated", "storm": "Storm"}[sev]
+                    kp_val = f"[{color}]K:{data.kp_current:.1f}  {level}[/{color}]"
+                yield Static("Kp Index", classes="solar-label")
+                yield Static(kp_val, classes="solar-value")
 
-            # Propagation block — only shown when park_latlon is available
+                sfi_val = f"{data.sfi:.0f}" if data.sfi is not None else "[dim]unknown[/dim]"
+                yield Static("SFI", classes="solar-label")
+                yield Static(sfi_val, classes="solar-value")
+
+                if self._park_latlon is not None:
+                    yield Static("MUF", classes="solar-label")
+                    yield Static("[dim]loading…[/dim]", id="solar-muf-val", classes="solar-value")
+                    yield Static("foF2", classes="solar-label")
+                    yield Static("", id="solar-fof2-val", classes="solar-value")
+
+            # Propagation source note
             if self._park_latlon is not None:
                 grid_label = self._park_grid or "unknown grid"
-                with Vertical(id="solar-prop-block"):
-                    yield Static(
-                        f"Propagation info for [bold]{grid_label}[/bold] [dim]via prop.kc2g.com[/dim]",
-                        id="solar-prop-header",
-                    )
-                    yield Static("[dim]loading…[/dim]", id="solar-muf-val")
-                    yield Static("", id="solar-fof2-val")
+                yield Static(
+                    f"[dim]Propagation for [bold]{grid_label}[/bold] via prop.kc2g.com[/dim]",
+                    id="solar-prop-header",
+                )
 
-            with ScrollableContainer(id="solar-scroll"):
-                # Kp history
-                yield Static("Last 24h Kp", id="solar-history-label")
-                if data.kp_history:
-                    for reading in data.kp_history:
-                        filled = round(reading.kp)
-                        bar = "▓" * min(filled, 9) + "░" * max(0, 9 - filled)
-                        sev = kp_severity(reading.kp)
-                        color = {"normal": "green", "elevated": "yellow", "storm": "red"}[sev]
-                        yield Static(
-                            f"{reading.time_utc[:16]}  K:{reading.kp:<4.1f}  [{color}]{bar}[/{color}]"
-                        )
-                else:
-                    yield Static("No history available.", classes="solar-muted")
+            # Kp history table
+            yield Static("Last 24h Kp", id="solar-history-label")
+            yield DataTable(id="solar-history-table", show_cursor=False, zebra_stripes=True)
 
-                # Active alerts
-                yield Static("Active Alerts", id="solar-alerts-label")
+            # Active alerts
+            yield Static("Active Alerts", id="solar-alerts-label")
+            with ScrollableContainer(id="solar-alerts-scroll"):
                 if data.active_alerts:
                     for alert in data.active_alerts:
                         snippet = alert.message[:120].replace("\n", " ")
                         if len(alert.message) > 120:
                             snippet += "…"
                         yield Static(
-                            f"[bold]{alert.product_id}[/bold]  {alert.issue_datetime[:16]}\n{snippet}"
+                            f"[bold]{alert.product_id}[/bold]  {alert.issue_datetime[:16]}\n{snippet}",
+                            classes="solar-alert",
                         )
                 else:
                     yield Static("No active geomagnetic alerts.", classes="solar-muted")
@@ -1052,6 +1070,30 @@ class SolarWeatherModal(ModalScreen[None]):
                 yield Button("Close", variant="primary", id="solar-close")
 
     def on_mount(self) -> None:
+        from potatui.space_weather import kp_severity
+
+        # Populate history DataTable
+        table = self.query_one("#solar-history-table", DataTable)
+        table.add_column("Time (UTC)", key="time")
+        table.add_column("Kp", key="kp")
+        table.add_column("Level", key="level")
+
+        data = self._data
+        if data.kp_history:
+            for reading in data.kp_history:
+                sev = kp_severity(reading.kp)
+                color = {"normal": "green", "elevated": "yellow", "storm": "red"}[sev]
+                level_label = {"normal": "Normal", "elevated": "Elevated", "storm": "Storm"}[sev]
+                filled = round(reading.kp)
+                bar = "▓" * min(filled, 9) + "░" * max(0, 9 - filled)
+                table.add_row(
+                    reading.time_utc[:16],
+                    f"[{color}]K:{reading.kp:.1f}[/{color}]",
+                    f"[{color}]{bar}  {level_label}[/{color}]",
+                )
+        else:
+            table.add_row("—", "—", "No history available")
+
         if self._park_latlon is not None:
             self._fetch_muf()
 
@@ -1069,8 +1111,8 @@ class SolarWeatherModal(ModalScreen[None]):
 
         stale_note = "  [dim](stale)[/dim]" if muf.stale else ""
         try:
-            self.query_one("#solar-muf-val", Static).update(f"MUF:  [bold]{muf.mufd:.1f} MHz[/bold]{stale_note}")
-            self.query_one("#solar-fof2-val", Static).update(f"foF2: {muf.fof2:.1f} MHz")
+            self.query_one("#solar-muf-val", Static).update(f"[bold]{muf.mufd:.1f} MHz[/bold]{stale_note}")
+            self.query_one("#solar-fof2-val", Static).update(f"{muf.fof2:.1f} MHz")
         except Exception:
             pass
 
