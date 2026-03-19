@@ -6,7 +6,8 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -15,6 +16,7 @@ _KP_URL = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
 _ALERTS_URL = "https://services.swpc.noaa.gov/products/alerts.json"
 _SFI_URL = "https://services.swpc.noaa.gov/products/summary/10cm-flux.json"
 _MUF_URL = "https://prop.kc2g.com/api/point_prediction.json"
+_FORECAST_URL = "https://services.swpc.noaa.gov/text/3-day-forecast.txt"
 
 # Age threshold (seconds) beyond which MUF model data is considered stale
 _MUF_STALE_SECONDS = 17 * 60
@@ -44,6 +46,18 @@ class SpaceWeatherAlert:
 
 
 @dataclass
+class KpForecastPeriod:
+    label: str               # e.g. "00-03UT"
+    kp: list[float | None]   # one value per forecast day (typically 3)
+
+
+@dataclass
+class KpForecastData:
+    day_labels: list[str]              # e.g. ["Mar 19", "Mar 20", "Mar 21"]
+    periods: list[KpForecastPeriod]    # 8 three-hour periods
+
+
+@dataclass
 class MufData:
     mufd: float
     fof2: float
@@ -58,6 +72,7 @@ class SpaceWeatherData:
     active_alerts: list[SpaceWeatherAlert]
     sfi: float | None = None
     fetch_error: bool = False
+    kp_forecast: KpForecastData | None = None
 
 
 def kp_severity(kp: float) -> str:
@@ -161,19 +176,82 @@ async def fetch_muf(lat: float, lon: float) -> MufData:
     return result
 
 
+async def fetch_kp_forecast() -> KpForecastData | None:
+    """Fetch and parse the NOAA 3-day Kp index forecast."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(_FORECAST_URL)
+        resp.raise_for_status()
+        text = resp.text
+
+    lines = text.splitlines()
+
+    # Locate "NOAA Kp index breakdown" section
+    section_start: int | None = None
+    for i, line in enumerate(lines):
+        if "NOAA Kp index breakdown" in line:
+            section_start = i
+            break
+    if section_start is None:
+        return None
+
+    # Next non-blank line after section_start should be blank, then the date header
+    day_labels: list[str] = []
+    period_start: int | None = None
+    for i in range(section_start + 1, min(section_start + 6, len(lines))):
+        line = lines[i]
+        found = re.findall(r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+', line)
+        if found:
+            day_labels = found
+            period_start = i + 1
+            break
+
+    if not day_labels or period_start is None:
+        return None
+
+    # Parse "HH-HHUT  val val val" rows
+    periods: list[KpForecastPeriod] = []
+    for i in range(period_start, len(lines)):
+        m = re.match(r'^\s*(\d{2}-\d{2}UT)\s+(.*)', lines[i])
+        if not m:
+            if periods:
+                break
+            continue
+        kp_vals = re.findall(r'\d+\.\d+', m.group(2))
+        kp: list[float | None] = []
+        for j in range(len(day_labels)):
+            if j < len(kp_vals):
+                try:
+                    kp.append(float(kp_vals[j]))
+                except ValueError:
+                    kp.append(None)
+            else:
+                kp.append(None)
+        periods.append(KpForecastPeriod(label=m.group(1), kp=kp))
+
+    if not periods:
+        return None
+
+    return KpForecastData(day_labels=day_labels, periods=periods)
+
+
 async def fetch_space_weather() -> SpaceWeatherData:
-    """Fetch Kp index, SFI, and alerts; never raises."""
-    results = await asyncio.gather(fetch_kp(), fetch_alerts(), fetch_sfi(), return_exceptions=True)
+    """Fetch Kp index, SFI, alerts, and 3-day forecast; never raises."""
+    results = await asyncio.gather(
+        fetch_kp(), fetch_alerts(), fetch_sfi(), fetch_kp_forecast(),
+        return_exceptions=True,
+    )
 
     kp_result = results[0]
     alerts_result = results[1]
     sfi_result = results[2]
+    forecast_result = results[3]
 
     fetch_error = isinstance(kp_result, BaseException) or isinstance(alerts_result, BaseException)
 
     kp_history: list[KpReading] = kp_result if isinstance(kp_result, list) else []
     active_alerts: list[SpaceWeatherAlert] = alerts_result if isinstance(alerts_result, list) else []
     sfi: float | None = sfi_result if isinstance(sfi_result, float) else None
+    kp_forecast: KpForecastData | None = forecast_result if isinstance(forecast_result, KpForecastData) else None
 
     kp_current = kp_history[0].kp if kp_history else None
 
@@ -183,4 +261,5 @@ async def fetch_space_weather() -> SpaceWeatherData:
         active_alerts=active_alerts,
         sfi=sfi,
         fetch_error=fetch_error,
+        kp_forecast=kp_forecast,
     )

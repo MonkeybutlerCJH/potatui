@@ -943,7 +943,7 @@ class SolarWeatherModal(ModalScreen[None]):
     #solar-box {
         width: 72;
         height: auto;
-        max-height: 42;
+        max-height: 58;
         border: solid $primary;
         background: $surface;
         padding: 1 2;
@@ -978,13 +978,17 @@ class SolarWeatherModal(ModalScreen[None]):
         padding: 0 1;
         background: $panel;
     }
-    #solar-history-label, #solar-alerts-label {
+    #solar-history-label, #solar-forecast-label, #solar-alerts-label {
         text-style: bold;
         color: $text-muted;
         margin-top: 1;
         margin-bottom: 0;
     }
     #solar-history-table {
+        height: 10;
+        margin-bottom: 0;
+    }
+    #solar-forecast-table {
         height: 10;
         margin-bottom: 0;
     }
@@ -1051,6 +1055,10 @@ class SolarWeatherModal(ModalScreen[None]):
             yield Static("Last 24h Kp", id="solar-history-label")
             yield DataTable(id="solar-history-table", show_cursor=False, zebra_stripes=True)
 
+            # 3-day forecast table
+            yield Static("3-Day Kp Forecast", id="solar-forecast-label")
+            yield DataTable(id="solar-forecast-table", show_cursor=False, zebra_stripes=True)
+
             # Active alerts
             yield Static("Active Alerts", id="solar-alerts-label")
             with ScrollableContainer(id="solar-alerts-scroll"):
@@ -1087,12 +1095,34 @@ class SolarWeatherModal(ModalScreen[None]):
                 filled = round(reading.kp)
                 bar = "▓" * min(filled, 9) + "░" * max(0, 9 - filled)
                 table.add_row(
-                    reading.time_utc[:16],
+                    reading.time_utc[5:16],  # strip year: "MM-DD HH:MM"
                     f"[{color}]K:{reading.kp:.1f}[/{color}]",
                     f"[{color}]{bar}  {level_label}[/{color}]",
                 )
         else:
             table.add_row("—", "—", "No history available")
+
+        # Populate 3-day forecast table
+        ftable = self.query_one("#solar-forecast-table", DataTable)
+        if data.kp_forecast:
+            ftable.add_column("Period", key="period")
+            for label in data.kp_forecast.day_labels:
+                ftable.add_column(label, key=label.replace(" ", "_"))
+            for period in data.kp_forecast.periods:
+                cells: list[str] = [period.label]
+                for kp_val in period.kp:
+                    if kp_val is None:
+                        cells.append("[dim]—[/dim]")
+                    else:
+                        sev = kp_severity(kp_val)
+                        color = {"normal": "green", "elevated": "yellow", "storm": "red"}[sev]
+                        filled = min(round(kp_val), 5)
+                        bar = "▓" * filled + "░" * (5 - filled)
+                        cells.append(f"[{color}]{bar} {kp_val:.2f}[/{color}]")
+                ftable.add_row(*cells)
+        else:
+            ftable.add_column("Period", key="period")
+            ftable.add_row("[dim]Forecast unavailable[/dim]")
 
         if self._park_latlon is not None:
             self._fetch_muf()
