@@ -58,7 +58,9 @@ To run again in a future session:
 
 ```bash
 cd potatui
+git pull          # optional: update to the latest version
 source .venv/bin/activate   # or activate.fish
+pip install -e .  # optional: only needed after an update
 potatui
 ```
 
@@ -91,7 +93,9 @@ To run again in a future session:
 
 ```powershell
 cd potatui
+git pull          # optional: update to the latest version
 .venv\Scripts\Activate.ps1
+pip install -e .  # optional: only needed after an update
 potatui
 ```
 
