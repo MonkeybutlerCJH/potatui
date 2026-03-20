@@ -120,7 +120,6 @@ async def fetch_alerts() -> list[SpaceWeatherAlert]:
 
     cutoff = datetime.now(UTC) - timedelta(hours=24)
     alerts: list[SpaceWeatherAlert] = []
-    _relevant_prefixes = ("ALTK", "WATA", "WATS", "G1", "G2", "G3", "G4", "G5")
 
     for item in data:
         try:
@@ -128,9 +127,6 @@ async def fetch_alerts() -> list[SpaceWeatherAlert]:
             issue_str: str = item.get("issue_datetime", "")
             message: str = item.get("message", "")
         except (AttributeError, KeyError):
-            continue
-
-        if not any(product_id.startswith(p) for p in _relevant_prefixes):
             continue
 
         # Parse issue_datetime — format is "2024-01-15 12:00:00.000"
@@ -141,6 +137,18 @@ async def fetch_alerts() -> list[SpaceWeatherAlert]:
 
         if issue_dt < cutoff:
             continue
+
+        # Strip NOAA preamble lines ("Space Weather Message Code:", "Serial Number:", "Issue Time:")
+        # The actual content follows the blank line after those headers.
+        _preamble = {"space weather message code", "serial number", "issue time"}
+        lines = message.splitlines()
+        content_start = 0
+        for i, line in enumerate(lines):
+            if line.strip().lower().split(":")[0] in _preamble or line.strip() == "":
+                content_start = i + 1
+            else:
+                break
+        message = "\n".join(lines[content_start:]).strip()
 
         alerts.append(SpaceWeatherAlert(
             product_id=product_id,

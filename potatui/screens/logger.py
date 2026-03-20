@@ -137,6 +137,8 @@ class LoggerScreen(Screen):
         self._table_focused: bool = False  # True when QSO table has focus
         self._solar_data: SpaceWeatherData | None = None
         self._seen_alert_keys: set[str] = set()
+        self._solar_initial_poll_done: bool = False
+        self._solar_alerts_acknowledged: bool = False
         self._solar_flash_timer: Timer | None = None
         self._solar_flash_toggle_state: bool = False
         self._offline: bool = config.offline_mode  # True = skip all internet calls
@@ -601,7 +603,7 @@ class LoggerScreen(Screen):
         kp = data.kp_current
         sev = kp_severity(kp)
         widget.update(f"K:{kp:.1f}")
-        if sev == "storm" and data.active_alerts:
+        if data.active_alerts and not self._solar_alerts_acknowledged:
             self._start_solar_flash()
         else:
             self._stop_solar_flash()
@@ -611,14 +613,15 @@ class LoggerScreen(Screen):
         current_keys = {a.alert_key for a in data.active_alerts}
         new_keys = current_keys - self._seen_alert_keys
         self._seen_alert_keys |= current_keys
+        if not self._solar_initial_poll_done:
+            self._solar_initial_poll_done = True
+            return
+        if new_keys:
+            self._solar_alerts_acknowledged = False
         for alert in data.active_alerts:
             if alert.alert_key in new_keys:
-                snippet = alert.message[:80].replace("\n", " ")
-                self.notify(
-                    f"Space weather alert: {alert.product_id} — {snippet}",
-                    severity="warning",
-                    timeout=10,
-                )
+                first_line = alert.message.splitlines()[0] if alert.message else "New alert"
+                self.notify(first_line, title="Space Weather", severity="warning", timeout=10)
 
     def _start_solar_flash(self) -> None:
         if self._solar_flash_timer is not None:
@@ -656,6 +659,7 @@ class LoggerScreen(Screen):
         if self._solar_data is None:
             self.notify("Space weather data not yet loaded.")
             return
+        self._solar_alerts_acknowledged = True
         self._stop_solar_flash()
         self.app.push_screen(SolarWeatherModal(self._solar_data, park_latlon=self._park_latlon, park_grid=self._park_grid))
 

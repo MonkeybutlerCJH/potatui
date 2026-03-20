@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 
 from textual import on, work
 from textual.app import ComposeResult
-from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
+from textual.containers import Container, Horizontal, ScrollableContainer, Vertical, VerticalScroll
 from textual.screen import ModalScreen
-from textual.widgets import Button, DataTable, Input, Label, ListItem, ListView, Select, Static
+from textual.widgets import Button, DataTable, Input, Label, ListItem, ListView, Rule, Select, Static
 
 from potatui.adif import freq_to_band
 from potatui.session import QSO, Session
@@ -964,9 +964,9 @@ class SolarWeatherModal(ModalScreen[None]):
         align: center middle;
     }
     #solar-box {
-        width: 72;
+        width: 90;
         height: auto;
-        max-height: 58;
+        max-height: 62;
         border: solid $primary;
         background: $surface;
         padding: 1 2;
@@ -1001,11 +1001,26 @@ class SolarWeatherModal(ModalScreen[None]):
         padding: 0 1;
         background: $panel;
     }
+    #solar-tables-row {
+        height: auto;
+        margin-top: 1;
+    }
+    #solar-history-col {
+        width: 32;
+        height: auto;
+        margin-right: 2;
+    }
+    #solar-forecast-col {
+        width: 1fr;
+        height: auto;
+    }
     #solar-history-label, #solar-forecast-label, #solar-alerts-label {
         text-style: bold;
         color: $text-muted;
-        margin-top: 1;
         margin-bottom: 0;
+    }
+    #solar-alerts-label {
+        margin-top: 1;
     }
     #solar-history-table {
         height: 10;
@@ -1017,7 +1032,7 @@ class SolarWeatherModal(ModalScreen[None]):
     }
     #solar-alerts-scroll {
         height: auto;
-        max-height: 6;
+        max-height: 20;
     }
     .solar-alert {
         margin-bottom: 1;
@@ -1041,7 +1056,7 @@ class SolarWeatherModal(ModalScreen[None]):
 
         data = self._data
 
-        with Container(id="solar-box"):
+        with VerticalScroll(id="solar-box"):
             yield Static("☀  Space Weather", id="solar-title")
 
             # Current conditions grid
@@ -1074,28 +1089,28 @@ class SolarWeatherModal(ModalScreen[None]):
                     id="solar-prop-header",
                 )
 
-            # Kp history table
-            yield Static("Last 24h Kp", id="solar-history-label")
-            yield DataTable(id="solar-history-table", show_cursor=False, zebra_stripes=True)
-
-            # 3-day forecast table
-            yield Static("3-Day Kp Forecast", id="solar-forecast-label")
-            yield DataTable(id="solar-forecast-table", show_cursor=False, zebra_stripes=True)
+            # Kp history + 3-day forecast side by side
+            with Horizontal(id="solar-tables-row"):
+                with Vertical(id="solar-history-col"):
+                    yield Static("Last 24h Kp", id="solar-history-label")
+                    yield DataTable(id="solar-history-table", show_cursor=False, zebra_stripes=True)
+                with Vertical(id="solar-forecast-col"):
+                    yield Static("3-Day Kp Forecast", id="solar-forecast-label")
+                    yield DataTable(id="solar-forecast-table", show_cursor=False, zebra_stripes=True)
 
             # Active alerts
-            yield Static("Active Alerts", id="solar-alerts-label")
+            yield Static("Space Weather Alerts", id="solar-alerts-label")
             with ScrollableContainer(id="solar-alerts-scroll"):
                 if data.active_alerts:
-                    for alert in data.active_alerts:
-                        snippet = alert.message[:120].replace("\n", " ")
-                        if len(alert.message) > 120:
-                            snippet += "…"
+                    for i, alert in enumerate(data.active_alerts):
+                        if i > 0:
+                            yield Rule()
                         yield Static(
-                            f"[bold]{alert.product_id}[/bold]  {alert.issue_datetime[:16]}\n{snippet}",
+                            f"{alert.issue_datetime[:16]}\n{alert.message}",
                             classes="solar-alert",
                         )
                 else:
-                    yield Static("No active geomagnetic alerts.", classes="solar-muted")
+                    yield Static("No alerts in the last 24 hours.", classes="solar-muted")
 
             with Horizontal(id="solar-btn-row"):
                 yield Button("Close", variant="primary", id="solar-close")
@@ -1107,44 +1122,40 @@ class SolarWeatherModal(ModalScreen[None]):
         table = self.query_one("#solar-history-table", DataTable)
         table.add_column("Time (UTC)", key="time")
         table.add_column("Kp", key="kp")
-        table.add_column("Level", key="level")
 
         data = self._data
         if data.kp_history:
             for reading in data.kp_history:
                 sev = kp_severity(reading.kp)
                 color = {"normal": "green", "elevated": "yellow", "storm": "red"}[sev]
-                level_label = {"normal": "Normal", "elevated": "Elevated", "storm": "Storm"}[sev]
                 filled = round(reading.kp)
-                bar = "▓" * min(filled, 9) + "░" * max(0, 9 - filled)
+                bar = "▓" * min(filled, 6) + "░" * max(0, 6 - filled)
                 table.add_row(
                     reading.time_utc[5:16],  # strip year: "MM-DD HH:MM"
-                    f"[{color}]K:{reading.kp:.1f}[/{color}]",
-                    f"[{color}]{bar}  {level_label}[/{color}]",
+                    f"[{color}]{bar} {reading.kp:.1f}[/{color}]",
                 )
         else:
-            table.add_row("—", "—", "No history available")
+            table.add_row("—", "No history available")
 
         # Populate 3-day forecast table
         ftable = self.query_one("#solar-forecast-table", DataTable)
         if data.kp_forecast:
-            ftable.add_column("Period", key="period")
+            ftable.add_column("UTC", key="period")
             for label in data.kp_forecast.day_labels:
                 ftable.add_column(label, key=label.replace(" ", "_"))
             for period in data.kp_forecast.periods:
-                cells: list[str] = [period.label]
+                row_label = period.label.replace("UT", "")
+                cells: list[str] = [row_label]
                 for kp_val in period.kp:
                     if kp_val is None:
                         cells.append("[dim]—[/dim]")
                     else:
                         sev = kp_severity(kp_val)
                         color = {"normal": "green", "elevated": "yellow", "storm": "red"}[sev]
-                        filled = min(round(kp_val), 5)
-                        bar = "▓" * filled + "░" * (5 - filled)
-                        cells.append(f"[{color}]{bar} {kp_val:.2f}[/{color}]")
+                        cells.append(f"[{color}]{kp_val:.1f}[/{color}]")
                 ftable.add_row(*cells)
         else:
-            ftable.add_column("Period", key="period")
+            ftable.add_column("UTC", key="period")
             ftable.add_row("[dim]Forecast unavailable[/dim]")
 
         if self._park_latlon is not None:
