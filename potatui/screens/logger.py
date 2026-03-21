@@ -717,6 +717,12 @@ class LoggerScreen(Screen):
             self._table_focused = now_table
             self.refresh_bindings()
 
+        if event.widget.id == "f-p2p":
+            inp = event.widget
+            assert isinstance(inp, Input)
+            inp.cursor_position = len(inp.value)
+            return
+
         if event.widget.id not in ("f-rst-sent", "f-rst-rcvd"):
             return
         assert isinstance(event.widget, Input)
