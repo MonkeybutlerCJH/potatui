@@ -9,13 +9,12 @@ A terminal user interface (TUI) for logging Parks on the Air (POTA) activations.
 
 ## Features
 
-- **Built for activators** — fast single-key logging, live spots with one-press QSY, automatic ADIF export, and QRZ callsign lookup, all in a terminal that runs on any laptop you bring to the field.
-- **Offline park database** — a local copy of the full POTA parks list is downloaded on first launch and refreshed every 30 days. Park lookups work even without internet. Toggle full offline mode with Ctrl+N.
-- **Live park lookup** — park name and location shown as you type the park ref at setup. Also supports typing a park name to search by name.
+- **Built for activators** — built for fast logging, live POTA spots with one-press QSY, automatic ADIF export, and QRZ callsign lookup, all in a terminal that runs on any laptop you bring to the field.
 - **P2P park lookup** — dedicated P2P field does a live lookup, displays the park name and distance/bearing from your park, and auto-fills the State field with the state abbreviation.
 - **Callsign lookup** — name, location, distance, and direction from your park shown automatically as you type a callsign. First name and state auto-fill. Backfill (Ctrl+B) fills in missing names/states for all QSOs in a session. Uses QRZ XML if configured; falls back to HamDB.org (no account required) automatically.
 - **POTA spots browser** — live spot list with band/mode/sort/search filters, auto-refreshes every 60 seconds. QSY directly to a spot with one keypress (tunes flrig, pre-fills callsign and P2P park). Distance from your park shown per spot. Worked activators shown in green.
 - **Self-spotting** — post yourself to the POTA network from within the app. Your most recent spot is displayed live on the logging screen, showing who spotted you, how long ago, and any comments — colour-coded green/yellow/grey by age.
+- **Offline park database** — a local copy of the full POTA parks list is downloaded on first launch and refreshed every 30 days. Park lookups work even without internet. Toggle full offline mode with Ctrl+N.
 - **Solar/space weather indicator** — live NOAA Kp geomagnetic index shown in the header. Flashes red and fires a warning toast when a geomagnetic storm alert is active. Click the pill to see the last 24h Kp history, a 3-day Kp forecast (colour-coded by severity), full alert text, and MUF/foF2 propagation prediction for your park's grid square (via [prop.kc2g.com](https://prop.kc2g.com/)). Polls every 10 minutes; skipped in offline mode.
 - **Commander** — fire CAT commands or run console commands via configurable slots with custom labels and keyboard shortcuts. Open the full panel with F7.
 - **Resume activations** — on launch, pick any previous session to continue from where you left off.
