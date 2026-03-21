@@ -921,6 +921,7 @@ class WawaModal(ModalScreen[None]):
         result_widget = self.query_one("#wawa-result", Static)
         unit = "mi" if self._use_miles else "km"
 
+        found = False
         if self._offline_mode:
             result_widget.update("Offline mode active — Wawa search unavailable.")
         else:
@@ -932,6 +933,7 @@ class WawaModal(ModalScreen[None]):
                 else:
                     address, distance = result
                     result_widget.update(f"{address}\n{distance:.1f} {unit} away")
+                    found = True
             except RuntimeError as e:
                 if str(e) == "rate_limited":
                     result_widget.update("Overpass API rate limited — try again in a minute.")
@@ -940,7 +942,9 @@ class WawaModal(ModalScreen[None]):
             except Exception:
                 result_widget.update("Could not reach OpenStreetMap — check your connection.")
 
-        self.query_one("#wawa-close", Button).disabled = False
+        btn = self.query_one("#wawa-close", Button)
+        btn.label = "Nice!" if found else "Bummer"
+        btn.disabled = False
 
     @on(Button.Pressed, "#wawa-close")
     def on_close(self) -> None:
