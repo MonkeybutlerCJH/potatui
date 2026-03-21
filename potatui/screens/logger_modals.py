@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (c) 2026 MonkeybutlerCJH (https://github.com/MonkeybutlerCJH)
 
 """Modal dialogs used by the logger screen (and potentially others)."""
@@ -1197,7 +1197,7 @@ class SolarWeatherModal(ModalScreen[None]):
 # About modal
 # ---------------------------------------------------------------------------
 
-_LAST_UPDATED = "2026-03-20"
+_LAST_UPDATED = "2026-03-21"
 
 _ABOUT_LOGO = [
     "██████╗  ██████╗ ████████╗ █████╗ ████████╗██╗   ██╗██╗",
@@ -1265,7 +1265,7 @@ class AboutModal(ModalScreen[None]):
             yield Rule(id="about-rule")
             yield Static(
                 "Created by [bold]NV3Y[/bold] with help from [bold]Claude[/bold] (Anthropic)\n"
-                "Licensed under CC BY-NC-SA 4.0",
+                "Licensed under the GNU General Public License v3.0 or later",
                 id="about-body",
             )
             yield Static(

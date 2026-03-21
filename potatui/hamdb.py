@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (c) 2026 MonkeybutlerCJH (https://github.com/MonkeybutlerCJH)
 
 """HamDB.org callsign lookup — no-auth fallback when QRZ is unavailable."""
