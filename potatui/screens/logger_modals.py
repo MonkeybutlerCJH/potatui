@@ -8,6 +8,8 @@ from __future__ import annotations
 import math
 from datetime import datetime, timedelta
 
+from dataclasses import dataclass
+
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, ScrollableContainer, Vertical, VerticalScroll
@@ -621,6 +623,202 @@ class FlrigStatusModal(ModalScreen[None]):
                 yield Button("Close", variant="primary", id="flrig-status-btn-close")
 
     @on(Button.Pressed, "#flrig-status-btn-close")
+    def on_close(self) -> None:
+        self.dismiss(None)
+
+    def on_key(self, event) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+
+
+# ---------------------------------------------------------------------------
+# Network status modal
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class NetworkStatusSnapshot:
+    """Point-in-time snapshot of all network/service states for the modal."""
+
+    internet_online: bool
+    offline_manual: bool
+
+    pota_online: bool
+
+    qrz_status: str  # "unconfigured" | "ok" | "error"
+    qrz_errors: list[str]
+
+    hamdb_errors: list[str]
+    hamdb_used: bool
+
+    flrig_url: str
+    flrig_online: bool
+
+    noaa_ok: bool
+    noaa_loaded: bool
+
+
+def _net_status_dot(ok: bool) -> str:
+    return "[green]●[/green]" if ok else "[red]●[/red]"
+
+
+def _net_svc_line(name: str, online: bool) -> str:
+    dot = _net_status_dot(online)
+    status = "[green]Online[/green]" if online else "[red]Offline[/red]"
+    return f"{dot}  {name}  {status}"
+
+
+def _net_svc_qrz(status: str) -> str:
+    if status == "unconfigured":
+        return "[dim]○[/dim]  QRZ API  Unconfigured"
+    dot = _net_status_dot(status == "ok")
+    label = "[green]OK[/green]" if status == "ok" else "[red]Error[/red]"
+    return f"{dot}  QRZ API  {label}"
+
+
+def _net_svc_hamdb(errors: list[str], used: bool) -> str:
+    if not used and not errors:
+        return "[dim]○[/dim]  HamDB API  Not used"
+    ok = len(errors) == 0
+    dot = _net_status_dot(ok)
+    label = "OK" if ok else f"{len(errors)} recent error(s)"
+    return f"{dot}  HamDB API  {label}"
+
+
+def _net_svc_flrig(online: bool, url: str) -> str:
+    dot = _net_status_dot(online)
+    status = "[green]Online[/green]" if online else "[red]Offline[/red]"
+    return f"{dot}  flrig  {status}  [dim]({url})[/dim]"
+
+
+def _net_svc_noaa(ok: bool, loaded: bool) -> str:
+    if not loaded:
+        return "[dim]○[/dim]  NOAA  Not loaded yet"
+    dot = _net_status_dot(ok)
+    label = "[green]OK[/green]" if ok else "[red]Fetch error[/red]"
+    return f"{dot}  NOAA  {label}"
+
+
+class NetworkStatusModal(ModalScreen[None]):
+    CSS = """
+    NetworkStatusModal { align: center middle; }
+    #net-status-box {
+        width: 64;
+        height: auto;
+        border: solid $primary;
+        background: $surface;
+        padding: 1 2;
+    }
+    #net-status-title {
+        text-align: center;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    #net-ping-section {
+        height: auto;
+        border: tall $primary;
+        background: $panel;
+        padding: 0 1;
+    }
+    #net-ping-section Static { width: auto; height: 1; }
+    #net-services-section {
+        height: auto;
+        border: tall $primary;
+        background: $panel;
+        padding: 0 1;
+        margin-top: 1;
+    }
+    #net-services-section Static { width: auto; height: 1; }
+    #net-errors-section {
+        height: auto;
+        border: tall $primary;
+        background: $panel;
+        padding: 0 1;
+        margin-top: 1;
+    }
+    #net-errors-label {
+        text-style: bold;
+        color: $text-muted;
+    }
+    #net-errors-scroll { height: 8; }
+    #net-status-close { height: auto; align: right middle; margin-top: 1; }
+    """
+
+    def __init__(self, snapshot: NetworkStatusSnapshot) -> None:
+        super().__init__()
+        self._snap = snapshot
+
+    def compose(self) -> ComposeResult:
+        s = self._snap
+
+        if s.offline_manual:
+            inet = "[yellow]Manual Offline[/yellow]  (Ctrl+N to toggle)"
+        elif s.internet_online:
+            inet = "[green]Online[/green]"
+        else:
+            inet = "[red]Offline[/red]"
+
+        with Container(id="net-status-box"):
+            yield Static("Network Status", id="net-status-title")
+
+            with Vertical(id="net-ping-section"):
+                yield Static(f"Internet:  {inet}")
+                if s.offline_manual:
+                    yield Static("Latency:   [dim]skipped (manual offline)[/dim]",
+                                 id="net-ping-latency")
+                else:
+                    yield Static("Latency:   [dim]measuring…[/dim]",
+                                 id="net-ping-latency")
+
+            with Vertical(id="net-services-section"):
+                yield Static(_net_svc_line("POTA API", s.pota_online))
+                yield Static(_net_svc_qrz(s.qrz_status))
+                yield Static(_net_svc_hamdb(s.hamdb_errors, s.hamdb_used))
+                yield Static(_net_svc_flrig(s.flrig_online, s.flrig_url))
+                yield Static(_net_svc_noaa(s.noaa_ok, s.noaa_loaded))
+
+            errors: list[str] = []
+            for e in s.qrz_errors:
+                errors.append(f"QRZ:   {e}")
+            for e in s.hamdb_errors:
+                errors.append(f"HamDB: {e}")
+            if errors:
+                with Vertical(id="net-errors-section"):
+                    yield Static("Recent Errors", id="net-errors-label")
+                    with ScrollableContainer(id="net-errors-scroll"):
+                        for entry in errors:
+                            yield Static(entry)
+
+            with Horizontal(id="net-status-close"):
+                yield Button("Close", variant="primary", id="net-status-btn-close")
+
+    def on_mount(self) -> None:
+        if not self._snap.offline_manual:
+            self._measure_ping()
+
+    @work(thread=True, exclusive=True, group="net-ping")
+    def _measure_ping(self) -> None:
+        import socket
+        import time
+
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(3)
+            start = time.monotonic()
+            sock.connect(("8.8.8.8", 53))
+            latency_ms = (time.monotonic() - start) * 1000
+            sock.close()
+            self.app.call_from_thread(self._update_ping, f"{latency_ms:.0f} ms")
+        except Exception:
+            self.app.call_from_thread(self._update_ping, "[red]unreachable[/red]")
+
+    def _update_ping(self, text: str) -> None:
+        try:
+            self.query_one("#net-ping-latency", Static).update(f"Latency:   {text}")
+        except Exception:
+            pass
+
+    @on(Button.Pressed, "#net-status-btn-close")
     def on_close(self) -> None:
         self.dismiss(None)
 

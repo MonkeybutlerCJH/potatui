@@ -34,6 +34,8 @@ from potatui.screens.logger_modals import (
     EditQSOModal,
     FlrigStatusModal,
     ModePickerModal,
+    NetworkStatusModal,
+    NetworkStatusSnapshot,
     QrzLogModal,
     SelfSpotModal,
     SessionSummaryModal,
@@ -559,6 +561,23 @@ class LoggerScreen(Screen):
             self.notify("QRZ not configured — add credentials in Settings (F8)", severity="warning")
             return
         self.app.push_screen(QrzLogModal(self._qrz.error_log))
+
+    @on(events.Click, "#hdr-net")
+    def on_net_indicator_click(self) -> None:
+        snapshot = NetworkStatusSnapshot(
+            internet_online=not self._offline,
+            offline_manual=self._offline_manual,
+            pota_online=not self._offline,
+            qrz_status=self._qrz.status,
+            qrz_errors=self._qrz.error_log[:5],
+            hamdb_errors=self._hamdb.error_log[:5],
+            hamdb_used=bool(self._hamdb._cache),
+            flrig_url=self.flrig._url,
+            flrig_online=self._flrig_online,
+            noaa_ok=not (self._solar_data.fetch_error if self._solar_data else True),
+            noaa_loaded=self._solar_data is not None,
+        )
+        self.app.push_screen(NetworkStatusModal(snapshot))
 
     @work(exclusive=True, group="net-check")
     async def _check_internet_connectivity(self) -> None:
