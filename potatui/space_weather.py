@@ -84,6 +84,20 @@ def kp_severity(kp: float) -> str:
     return "normal"
 
 
+def kp_traditional(kp: float) -> str:
+    """Convert a decimal Kp value to traditional notation (e.g. 2.33 → '2+')."""
+    whole = int(kp)
+    frac = kp - whole
+    if frac < 0.17:
+        suffix = ""
+    elif frac < 0.5:
+        suffix = "+"
+    else:
+        suffix = "-"
+        whole += 1
+    return f"{whole}{suffix}"
+
+
 async def fetch_kp() -> list[KpReading]:
     """Fetch the last 8 Kp readings, newest first."""
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -112,13 +126,13 @@ async def fetch_sfi() -> float | None:
 
 
 async def fetch_alerts() -> list[SpaceWeatherAlert]:
-    """Fetch active geomagnetic alerts from the past 24 hours."""
+    """Fetch active geomagnetic alerts from the past 8 hours."""
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(_ALERTS_URL)
         resp.raise_for_status()
         data = resp.json()
 
-    cutoff = datetime.now(UTC) - timedelta(hours=24)
+    cutoff = datetime.now(UTC) - timedelta(hours=8)
     alerts: list[SpaceWeatherAlert] = []
 
     for item in data:

@@ -43,7 +43,7 @@ from potatui.screens.logger_modals import (
     _rst_default,
 )
 from potatui.session import QSO, Session
-from potatui.space_weather import SpaceWeatherData, fetch_space_weather, kp_severity
+from potatui.space_weather import SpaceWeatherData, fetch_space_weather, kp_severity, kp_traditional
 
 # ---------------------------------------------------------------------------
 # Shift helpers
@@ -604,7 +604,7 @@ class LoggerScreen(Screen):
             return
         kp = data.kp_current
         sev = kp_severity(kp)
-        widget.update(f"K:{kp:.1f}")
+        widget.update(f"Kp:{kp_traditional(kp)}")
         if data.active_alerts and not self._solar_alerts_acknowledged:
             self._start_solar_flash()
         else:

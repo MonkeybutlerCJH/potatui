@@ -980,21 +980,25 @@ class SolarWeatherModal(ModalScreen[None]):
         margin-bottom: 1;
     }
     #solar-conditions {
-        layout: grid;
-        grid-size: 2;
-        grid-columns: 12 1fr;
         height: auto;
-        padding: 0 1;
+        padding: 0 2;
         background: $panel;
+        border: tall $primary;
         margin-bottom: 0;
+        align: center middle;
     }
-    .solar-label {
+    #solar-conditions Static {
+        width: auto;
+        height: 1;
+    }
+    .solar-lbl {
         color: $text-muted;
-        height: 1;
-        padding: 0 2 0 0;
     }
-    .solar-value {
-        height: 1;
+    .solar-val {
+        text-style: bold;
+    }
+    .solar-sep {
+        color: $text-muted;
     }
     #solar-prop-header {
         color: $text-muted;
@@ -1055,34 +1059,36 @@ class SolarWeatherModal(ModalScreen[None]):
         self._park_grid = park_grid
 
     def compose(self) -> ComposeResult:
-        from potatui.space_weather import kp_severity
+        from potatui.space_weather import kp_severity, kp_traditional
 
         data = self._data
 
         with VerticalScroll(id="solar-box"):
-            yield Static("☀  Space Weather", id="solar-title")
+            yield Static("Space Weather", id="solar-title")
 
-            # Current conditions grid
-            with Container(id="solar-conditions"):
+            # Current conditions – single line
+            with Horizontal(id="solar-conditions"):
                 if data.kp_current is None:
-                    kp_val = "[dim]unknown[/dim]"
+                    kp_display = "[dim]—[/dim]"
                 else:
                     sev = kp_severity(data.kp_current)
                     color = {"normal": "green", "elevated": "yellow", "storm": "red"}[sev]
                     level = {"normal": "Normal", "elevated": "Elevated", "storm": "Storm"}[sev]
-                    kp_val = f"[{color}]K:{data.kp_current:.1f}  {level}[/{color}]"
-                yield Static("Kp Index", classes="solar-label")
-                yield Static(kp_val, classes="solar-value")
+                    kp_display = f"[{color}]{kp_traditional(data.kp_current)} {level}[/{color}]"
+                sfi_display = f"{data.sfi:.0f}" if data.sfi is not None else "[dim]—[/dim]"
 
-                sfi_val = f"{data.sfi:.0f}" if data.sfi is not None else "[dim]unknown[/dim]"
-                yield Static("SFI", classes="solar-label")
-                yield Static(sfi_val, classes="solar-value")
-
+                yield Static("Kp ", classes="solar-lbl")
+                yield Static(kp_display, classes="solar-val")
+                yield Static("  ·  ", classes="solar-sep")
+                yield Static("SFI ", classes="solar-lbl")
+                yield Static(sfi_display, classes="solar-val")
                 if self._park_latlon is not None:
-                    yield Static("MUF", classes="solar-label")
-                    yield Static("[dim]loading…[/dim]", id="solar-muf-val", classes="solar-value")
-                    yield Static("foF2", classes="solar-label")
-                    yield Static("", id="solar-fof2-val", classes="solar-value")
+                    yield Static("  ·  ", classes="solar-sep")
+                    yield Static("MUF ", classes="solar-lbl")
+                    yield Static("[dim]…[/dim]", id="solar-muf-val", classes="solar-val")
+                    yield Static("  ·  ", classes="solar-sep solar-fof2-sep")
+                    yield Static("foF2 ", classes="solar-lbl solar-fof2-sep")
+                    yield Static("[dim]…[/dim]", id="solar-fof2-val", classes="solar-val")
 
             # Propagation source note
             if self._park_latlon is not None:
@@ -1113,13 +1119,13 @@ class SolarWeatherModal(ModalScreen[None]):
                             classes="solar-alert",
                         )
                 else:
-                    yield Static("No alerts in the last 24 hours.", classes="solar-muted")
+                    yield Static("No alerts in the last 8 hours.", classes="solar-muted")
 
             with Horizontal(id="solar-btn-row"):
                 yield Button("Close", variant="primary", id="solar-close")
 
     def on_mount(self) -> None:
-        from potatui.space_weather import kp_severity
+        from potatui.space_weather import kp_severity, kp_traditional
 
         # Populate history DataTable
         table = self.query_one("#solar-history-table", DataTable)
@@ -1135,7 +1141,7 @@ class SolarWeatherModal(ModalScreen[None]):
                 bar = "▓" * min(filled, 6) + "░" * max(0, 6 - filled)
                 table.add_row(
                     reading.time_utc[5:16],  # strip year: "MM-DD HH:MM"
-                    f"[{color}]{bar} {reading.kp:.1f}[/{color}]",
+                    f"[{color}]{bar} {kp_traditional(reading.kp)}[/{color}]",
                 )
         else:
             table.add_row("—", "No history available")
@@ -1155,7 +1161,7 @@ class SolarWeatherModal(ModalScreen[None]):
                     else:
                         sev = kp_severity(kp_val)
                         color = {"normal": "green", "elevated": "yellow", "storm": "red"}[sev]
-                        cells.append(f"[{color}]{kp_val:.1f}[/{color}]")
+                        cells.append(f"[{color}]{kp_traditional(kp_val)}[/{color}]")
                 ftable.add_row(*cells)
         else:
             ftable.add_column("UTC", key="period")
@@ -1171,14 +1177,17 @@ class SolarWeatherModal(ModalScreen[None]):
             muf = await fetch_muf(lat, lon)
         except Exception:
             try:
-                self.query_one("#solar-muf-val", Static).update("[dim]unavailable[/dim]")
+                self.query_one("#solar-muf-val", Static).update("[dim]n/a[/dim]")
+                for w in self.query(".solar-fof2-sep"):
+                    w.display = False
+                self.query_one("#solar-fof2-val", Static).display = False
             except Exception:
                 pass
             return
 
-        stale_note = "  [dim](stale)[/dim]" if muf.stale else ""
+        stale_note = " [dim](stale)[/dim]" if muf.stale else ""
         try:
-            self.query_one("#solar-muf-val", Static).update(f"[bold]{muf.mufd:.1f} MHz[/bold]{stale_note}")
+            self.query_one("#solar-muf-val", Static).update(f"{muf.mufd:.1f} MHz{stale_note}")
             self.query_one("#solar-fof2-val", Static).update(f"{muf.fof2:.1f} MHz")
         except Exception:
             pass
@@ -1196,7 +1205,7 @@ class SolarWeatherModal(ModalScreen[None]):
 # About modal
 # ---------------------------------------------------------------------------
 
-_LAST_UPDATED = "2026-03-22"
+_LAST_UPDATED = "2026-03-23"
 
 _ABOUT_LOGO = [
     "██████╗  ██████╗ ████████╗ █████╗ ████████╗██╗   ██╗██╗",
