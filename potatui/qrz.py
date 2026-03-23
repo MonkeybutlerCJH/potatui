@@ -57,11 +57,11 @@ class QRZClient:
 
     @property
     def status(self) -> str:
-        """'unconfigured' | 'ok' | 'error' — reflects last API interaction."""
+        """'unconfigured' | 'pending' | 'ok' | 'error' — reflects last API interaction."""
         if not self.configured:
             return "unconfigured"
         if self._last_ok is None:
-            return "unconfigured"  # configured but not yet tested
+            return "pending"  # configured but not yet tested
         return "ok" if self._last_ok else "error"
 
     @property

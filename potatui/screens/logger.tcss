@@ -47,7 +47,7 @@ LoggerScreen {
     background: $error;
 }
 
-#hdr-net.net-unknown, #hdr-qrz.qrz-unconfigured {
+#hdr-net.net-unknown, #hdr-qrz.qrz-unconfigured, #hdr-qrz.qrz-pending {
     background: $panel;
     color: $text-muted;
 }

@@ -1413,6 +1413,7 @@ class LoggerScreen(Screen):
             net_widget.set_classes("net-unknown")
             self.notify("Offline mode OFF — network features re-enabled")
             self._check_internet_connectivity()
+            self._poll_space_weather()
 
     @work(thread=True)
     def _fire_cat_slot(self, label: str, cmd: str) -> None:

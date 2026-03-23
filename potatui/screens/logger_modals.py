@@ -645,7 +645,7 @@ class NetworkStatusSnapshot:
 
     pota_online: bool
 
-    qrz_status: str  # "unconfigured" | "ok" | "error"
+    qrz_status: str  # "unconfigured" | "pending" | "ok" | "error"
     qrz_errors: list[str]
 
     hamdb_errors: list[str]
@@ -670,7 +670,9 @@ def _net_svc_line(name: str, online: bool) -> str:
 
 def _net_svc_qrz(status: str) -> str:
     if status == "unconfigured":
-        return "[dim]○[/dim]  QRZ API  Unconfigured"
+        return "[dim]○[/dim]  QRZ API  Not configured"
+    if status == "pending":
+        return "[dim]○[/dim]  QRZ API  Waiting"
     dot = _net_status_dot(status == "ok")
     label = "[green]OK[/green]" if status == "ok" else "[red]Error[/red]"
     return f"{dot}  QRZ API  {label}"
@@ -771,11 +773,21 @@ class NetworkStatusModal(ModalScreen[None]):
                                  id="net-ping-latency")
 
             with Vertical(id="net-services-section"):
-                yield Static(_net_svc_line("POTA API", s.pota_online))
-                yield Static(_net_svc_qrz(s.qrz_status))
-                yield Static(_net_svc_hamdb(s.hamdb_errors, s.hamdb_used))
-                yield Static(_net_svc_flrig(s.flrig_online, s.flrig_url))
-                yield Static(_net_svc_noaa(s.noaa_ok, s.noaa_loaded))
+                if s.offline_manual:
+                    yield Static("[dim]○[/dim]  POTA API  [dim]Paused[/dim]")
+                    yield Static(_net_svc_qrz(s.qrz_status) if s.qrz_status == "unconfigured"
+                                 else "[dim]○[/dim]  QRZ API  [dim]Paused[/dim]")
+                    yield Static("[dim]○[/dim]  HamDB API  [dim]Paused[/dim]"
+                                 if s.hamdb_used
+                                 else _net_svc_hamdb(s.hamdb_errors, s.hamdb_used))
+                    yield Static(_net_svc_flrig(s.flrig_online, s.flrig_url))
+                    yield Static("[dim]○[/dim]  NOAA  [dim]Paused[/dim]")
+                else:
+                    yield Static(_net_svc_line("POTA API", s.pota_online))
+                    yield Static(_net_svc_qrz(s.qrz_status))
+                    yield Static(_net_svc_hamdb(s.hamdb_errors, s.hamdb_used))
+                    yield Static(_net_svc_flrig(s.flrig_online, s.flrig_url))
+                    yield Static(_net_svc_noaa(s.noaa_ok, s.noaa_loaded))
 
             errors: list[str] = []
             for e in s.qrz_errors:
