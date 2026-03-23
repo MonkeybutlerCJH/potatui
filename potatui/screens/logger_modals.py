@@ -489,6 +489,17 @@ class QrzLogModal(ModalScreen[None]):
         text-style: bold;
         margin-bottom: 1;
     }
+    #qrz-log-container {
+        height: 1fr;
+        border: tall $primary;
+        background: $panel;
+        padding: 0 1;
+    }
+    #qrz-log-label {
+        text-style: bold;
+        color: $text-muted;
+        margin-bottom: 0;
+    }
     #qrz-log-scroll { height: 1fr; }
     #qrz-log-empty { color: $text-muted; text-style: italic; }
     #qrz-log-close { height: auto; align: right middle; margin-top: 1; }
@@ -501,12 +512,14 @@ class QrzLogModal(ModalScreen[None]):
     def compose(self) -> ComposeResult:
         with Container(id="qrz-log-box"):
             yield Static("QRZ Connection Log", id="qrz-log-title")
-            with ScrollableContainer(id="qrz-log-scroll"):
-                if self._log:
-                    for entry in self._log:
-                        yield Static(entry)
-                else:
-                    yield Static("No errors logged — QRZ is working fine.", id="qrz-log-empty")
+            with Vertical(id="qrz-log-container"):
+                yield Static("Error Log", id="qrz-log-label")
+                with ScrollableContainer(id="qrz-log-scroll"):
+                    if self._log:
+                        for entry in self._log:
+                            yield Static(entry)
+                    else:
+                        yield Static("No errors logged — QRZ is working fine.", id="qrz-log-empty")
             with Horizontal(id="qrz-log-close"):
                 yield Button("Close", variant="primary", id="qrz-log-btn-close")
 
@@ -541,7 +554,26 @@ class FlrigStatusModal(ModalScreen[None]):
         text-style: bold;
         margin-bottom: 1;
     }
-    #flrig-status-scroll { height: 12; }
+    #flrig-status-info {
+        height: auto;
+        border: tall $primary;
+        background: $panel;
+        padding: 0 1;
+    }
+    #flrig-status-info Static { width: auto; height: 1; }
+    #flrig-status-log-container {
+        height: auto;
+        border: tall $primary;
+        background: $panel;
+        padding: 0 1;
+        margin-top: 1;
+    }
+    #flrig-status-log-label {
+        text-style: bold;
+        color: $text-muted;
+        margin-bottom: 0;
+    }
+    #flrig-status-scroll { height: 10; }
     #flrig-status-close { height: auto; align: right middle; margin-top: 1; }
     """
 
@@ -572,16 +604,19 @@ class FlrigStatusModal(ModalScreen[None]):
         )
         with Container(id="flrig-status-box"):
             yield Static("flrig Connection", id="flrig-status-title")
-            yield Static(f"URL:    {self._url}")
-            yield Static(f"Status: {status}")
-            if self._online:
-                yield Static(f"Freq:   {self._freq_khz:.1f} kHz  {self._band}  {self._mode}")
-            with ScrollableContainer(id="flrig-status-scroll"):
-                if combined:
-                    for entry in combined:
-                        yield Static(entry)
-                else:
-                    yield Static("No events logged yet.", classes="muted")
+            with Vertical(id="flrig-status-info"):
+                yield Static(f"URL:    {self._url}")
+                yield Static(f"Status: {status}")
+                if self._online:
+                    yield Static(f"Freq:   {self._freq_khz:.1f} kHz  {self._band}  {self._mode}")
+            with Vertical(id="flrig-status-log-container"):
+                yield Static("Event Log", id="flrig-status-log-label")
+                with ScrollableContainer(id="flrig-status-scroll"):
+                    if combined:
+                        for entry in combined:
+                            yield Static(entry)
+                    else:
+                        yield Static("No events logged yet.", classes="muted")
             with Horizontal(id="flrig-status-close"):
                 yield Button("Close", variant="primary", id="flrig-status-btn-close")
 
@@ -1015,11 +1050,17 @@ class SolarWeatherModal(ModalScreen[None]):
     #solar-history-col {
         width: 32;
         height: auto;
-        margin-right: 2;
+        margin-right: 1;
+        border: tall $primary;
+        background: $panel;
+        padding: 0 1;
     }
     #solar-forecast-col {
         width: 1fr;
         height: auto;
+        border: tall $primary;
+        background: $panel;
+        padding: 0 1;
     }
     #solar-history-label, #solar-forecast-label, #solar-alerts-label {
         text-style: bold;
@@ -1027,6 +1068,13 @@ class SolarWeatherModal(ModalScreen[None]):
         margin-bottom: 0;
     }
     #solar-alerts-label {
+        margin-top: 0;
+    }
+    #solar-alerts-container {
+        height: auto;
+        border: tall $primary;
+        background: $panel;
+        padding: 0 1;
         margin-top: 1;
     }
     #solar-history-table {
@@ -1039,7 +1087,7 @@ class SolarWeatherModal(ModalScreen[None]):
     }
     #solar-alerts-scroll {
         height: auto;
-        max-height: 20;
+        max-height: 18;
     }
     .solar-alert {
         margin-bottom: 1;
@@ -1108,18 +1156,19 @@ class SolarWeatherModal(ModalScreen[None]):
                     yield DataTable(id="solar-forecast-table", show_cursor=False, zebra_stripes=True)
 
             # Active alerts
-            yield Static("Space Weather Alerts", id="solar-alerts-label")
-            with ScrollableContainer(id="solar-alerts-scroll"):
-                if data.active_alerts:
-                    for i, alert in enumerate(data.active_alerts):
-                        if i > 0:
-                            yield Rule()
-                        yield Static(
-                            f"{alert.issue_datetime[:16]}\n{alert.message}",
-                            classes="solar-alert",
-                        )
-                else:
-                    yield Static("No alerts in the last 8 hours.", classes="solar-muted")
+            with Vertical(id="solar-alerts-container"):
+                yield Static("Space Weather Alerts", id="solar-alerts-label")
+                with ScrollableContainer(id="solar-alerts-scroll"):
+                    if data.active_alerts:
+                        for i, alert in enumerate(data.active_alerts):
+                            if i > 0:
+                                yield Rule()
+                            yield Static(
+                                f"{alert.issue_datetime[:16]}\n{alert.message}",
+                                classes="solar-alert",
+                            )
+                    else:
+                        yield Static("No alerts in the last 8 hours.", classes="solar-muted")
 
             with Horizontal(id="solar-btn-row"):
                 yield Button("Close", variant="primary", id="solar-close")
