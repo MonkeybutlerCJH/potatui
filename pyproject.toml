@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "potatui"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A TUI application for logging Parks on the Air (POTA) activations"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,6 +26,9 @@ dev = [
     "mypy>=1.10",
     "pytest>=8.0",
 ]
+
+[tool.hatch.version]
+path = "potatui/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["potatui"]
