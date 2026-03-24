@@ -1548,6 +1548,8 @@ class LoggerScreen(Screen):
         self.mode = mode
         try:
             self.query_one("#f-freq", Input).value = f"{freq_khz:.1f}"
+            self.query_one("#f-rst-sent", Input).value = _rst_default(mode)
+            self.query_one("#f-rst-rcvd", Input).value = _rst_default(mode)
             self._update_radio_display()
         except Exception:
             pass
