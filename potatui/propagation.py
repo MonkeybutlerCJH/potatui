@@ -114,11 +114,18 @@ def score_spot(
     # --- Empirical scoring ---
     min_d = min(emp_distances)
     max_d = max(emp_distances)
+    # D-layer absorption (~40 dB/hop) makes multi-hop impractical on bands
+    # below 20m during daytime. Above 14 MHz the D-layer is transparent.
+    multihop_capable = fo_mhz >= 14.0
 
-    if min_d * 0.9 <= dist_km <= max_d * 1.25:
-        emp_score = PropScore.HIGH
-    elif (min_d * 0.6 <= dist_km < min_d * 0.9) or (max_d * 1.25 < dist_km <= max_d * 2.0):
-        emp_score = PropScore.MEDIUM
+    if min_d * 0.90 <= dist_km <= max_d * 1.25:
+        emp_score = PropScore.HIGH                        # single-hop core
+    elif (min_d * 0.60 <= dist_km < min_d * 0.90) or (max_d * 1.25 < dist_km <= max_d * 1.50):
+        emp_score = PropScore.MEDIUM                      # single-hop fringe
+    elif multihop_capable and 2 * min_d * 0.85 <= dist_km <= 2 * max_d * 1.20:
+        emp_score = PropScore.MEDIUM                      # double-skip window
+    elif multihop_capable and 3 * min_d * 0.80 <= dist_km <= 3 * max_d * 1.15:
+        emp_score = PropScore.LOW                         # triple-skip (speculative)
     else:
         emp_score = PropScore.LOW
 
