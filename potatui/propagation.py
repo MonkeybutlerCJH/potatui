@@ -7,7 +7,7 @@ Uses two complementary signals:
   1. Empirical: distances of QSOs actually made this session, per band.
   2. Theoretical: skip zone calculation from ionospheric critical frequency (fof2).
 
-Empirical data wins when available (≥3 QSOs with distance on the band).
+Empirical data wins when available (≥10 QSOs with distance on the band).
 Theory serves as a fallback when the session is young.
 """
 
@@ -21,7 +21,7 @@ from potatui.adif import freq_to_band
 
 _F2_HEIGHT_KM = 300.0       # typical F2 ionospheric layer height
 _SINGLE_HOP_MAX_KM = 4000.0  # practical single-hop ceiling
-_MIN_EMPIRICAL = 3           # minimum QSOs needed to use empirical scoring
+_MIN_EMPIRICAL = 10          # minimum QSOs needed to use empirical scoring
 
 
 @dataclass
