@@ -95,7 +95,10 @@ def score_spot(
     has_empirical = len(emp_distances) >= _MIN_EMPIRICAL
 
     theoretical: PropScore | None = None
-    if profile.fof2_mhz is not None:
+    if profile.muf_mhz is not None and fo_mhz > profile.muf_mhz:
+        # Operating frequency above MUF — skywave propagation not possible on this band
+        theoretical = PropScore.LOW
+    elif profile.fof2_mhz is not None:
         theoretical = _theoretical_score(profile.fof2_mhz, fo_mhz, dist_km)
 
     if not has_empirical:
