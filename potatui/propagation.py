@@ -96,7 +96,14 @@ def score_spot(
 
     theoretical: PropScore | None = None
     if profile.muf_mhz is not None and fo_mhz > profile.muf_mhz:
-        # Operating frequency above MUF — skywave propagation not possible on this band
+        # Operating frequency above MUF — skywave propagation not possible on this band.
+        # Note: ideally mufd would be evaluated at the midpoint of each path rather than
+        # at the park location, since that's where F2 signals actually reflect. However,
+        # prop.kc2g.com is rate-limited to once per 15 min per location, making per-spot
+        # midpoint queries impractical (~50-100 unique midpoints per spots list).
+        # For typical POTA domestic paths (300–2000 mi) the park-location MUF is a
+        # reasonable proxy — both endpoints are usually in the same solar-illumination
+        # zone. Accuracy degrades on DX paths with midpoints at very different latitudes.
         theoretical = PropScore.LOW
     elif profile.fof2_mhz is not None:
         theoretical = _theoretical_score(profile.fof2_mhz, fo_mhz, dist_km)
