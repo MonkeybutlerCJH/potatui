@@ -547,8 +547,10 @@ class SpotsScreen(Screen):
         except ValueError:
             return
 
-        ok_freq = self.flrig.set_frequency(freq_khz * 1000)
+        # Set mode before frequency so any USB↔LSB VFO drift is corrected
+        # by the subsequent set_frequency call.
         ok_mode = self.flrig.set_mode(mode, freq_khz)
+        ok_freq = self.flrig.set_frequency(freq_khz * 1000)
         if not ok_freq or not ok_mode:
             self.notify("flrig not connected — radio not tuned", severity="warning")
         self.app.pop_screen()

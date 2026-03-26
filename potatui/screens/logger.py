@@ -1291,11 +1291,14 @@ class LoggerScreen(Screen):
             # Update the freq entry field
             freq_inp = self.query_one("#f-freq", Input)
             freq_inp.value = f"{freq:.1f}"
-            # Tune flrig if connected
+            # Tune flrig if connected — set mode before frequency so any
+            # VFO drift caused by a USB↔LSB switch is corrected by the
+            # subsequent set_frequency call (avoids ~1.4 kHz offset on
+            # cross-band changes).
             if self._flrig_online:
-                self.flrig.set_frequency(freq * 1000)
                 if self.mode == "SSB":
                     self.flrig.set_mode("SSB", freq)
+                self.flrig.set_frequency(freq * 1000)
             self.query_one("#f-callsign", Input).focus()
 
         self.app.push_screen(SetFreqModal(self.freq_khz), on_result)
