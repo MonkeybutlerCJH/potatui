@@ -1275,7 +1275,7 @@ class SolarWeatherModal(ModalScreen[None]):
         padding: 0 1;
     }
     #solar-forecast-col {
-        width: 1fr;
+        width: 40;
         height: auto;
         border: tall $primary;
         background: $panel;
