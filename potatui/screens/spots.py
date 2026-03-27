@@ -404,6 +404,9 @@ class SpotsScreen(Screen):
             filtered = [s for s in filtered if s.activator.upper() not in worked]
         if hide_digi:
             filtered = [s for s in filtered if not s.mode or s.mode.upper() not in ("FT8", "FT4")]
+        if self.config.callsign:
+            own = self.config.callsign.upper()
+            filtered = [s for s in filtered if s.activator.upper() != own]
 
         search = SpotsScreen._saved_search.strip().casefold()
         if search:
