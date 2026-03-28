@@ -192,6 +192,7 @@ class LoggerScreen(Screen):
             yield Static("qrz", id="hdr-qrz", classes="qrz-unconfigured")
             yield Static("|", classes="hdr-sep")
             yield Static("K:?", id="hdr-solar", classes="solar-unknown")
+            yield Static("|", id="hdr-shift-sep", classes="hdr-sep shift-inactive")
             yield Static("", id="hdr-shift", classes="shift-inactive")
 
         # Last-spotted bar (hidden until a spot is found)
@@ -363,21 +364,26 @@ class LoggerScreen(Screen):
     def _update_shift_indicator(self) -> None:
         """Update the Early/Late Shift emoji indicator in the header."""
         widget = self.query_one("#hdr-shift", Static)
+        sep = self.query_one("#hdr-shift-sep", Static)
         if self._shift_lon is None:
             widget.update("")
             widget.set_classes("shift-inactive")
+            sep.set_classes("hdr-sep shift-inactive")
             return
         lon = self._shift_lon
         status = _shift_status(lon, datetime.utcnow())
         if status == "early":
             widget.update("🌅")
             widget.set_classes("shift-early")
+            sep.set_classes("hdr-sep")
         elif status == "late":
             widget.update("🌙")
             widget.set_classes("shift-late")
+            sep.set_classes("hdr-sep")
         else:
             widget.update("")
             widget.set_classes("shift-inactive")
+            sep.set_classes("hdr-sep shift-inactive")
 
     @on(events.Click, "#hdr-shift")
     def _on_shift_click(self) -> None:

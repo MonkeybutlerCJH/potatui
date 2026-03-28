@@ -70,6 +70,7 @@ LoggerScreen {
     text-style: bold;
 }
 #hdr-shift.shift-inactive { display: none; }
+#hdr-shift-sep.shift-inactive { display: none; }
 #hdr-shift.shift-early { background: #b8860b; color: $background; }
 #hdr-shift.shift-late  { background: #1e3a5f; color: $text; }
 #hdr-shift.shift-early:hover { background: #daa520; }
