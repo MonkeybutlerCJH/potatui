@@ -215,16 +215,14 @@ Press **Enter** from any field to log the QSO. UTC timestamp is stamped at log t
 ### Header bar
 
 ```
-W1AW | US-1234 Gifford Pinchot NF | 14:32z | 14225.0 kHz  20M  SSB | ● QSOs: 4  32/hr | 00:23:11     ◉ net  ● flrig  ● qrz  K:2.0
+W1AW | US-1234 Gifford Pinchot NF | 14:32z | 14225.0 kHz  20M  SSB | ● QSOs: 4  32/hr | 00:23:11     ◉ net  K:2.0
 ```
 
 - QSO count shows today's contacts; if resuming a multi-day session, total is shown in parentheses.
 - Rate meter shows QSOs per hour (based on last 60 minutes of activity).
 - QSO count turns green and shows `✓` once you reach 10 contacts for a valid activation.
 - At 100 QSOs, a rainbow border animation fires (once per session).
-- Internet status indicator (`net`) shows whether the POTA API is reachable.
-- flrig status indicator is green when connected, red when offline.
-- QRZ indicator shows whether QRZ is configured and reachable.
+- **`net` indicator** — shows internet connectivity status (green/red/yellow for manual offline). Click it to open a Network Status panel showing the state of all services (POTA API, QRZ, HamDB, flrig, NOAA). From that panel, click the flrig or QRZ row to drill into their connection logs.
 - **Solar/Kp indicator** shows the current NOAA planetary K-index: green (normal, Kp < 5), yellow (elevated, Kp 5–6), red (storm, Kp ≥ 7). Flashes red when a geomagnetic storm alert is active and fires a warning toast for each new alert (looks back 24 hours on startup). Click to open a detail modal with the last 24h Kp history, a 3-day Kp forecast with colour-coded bar graphs, alert text, and a propagation block showing the MUF (maximum usable frequency) and foF2 (F2 layer critical frequency) for your park's grid square, sourced from [prop.kc2g.com](https://prop.kc2g.com/). Shows `K:?` until the first successful poll.
 - **Early/Late Shift indicator** — shows 🌅 or 🌙 in the header when you're within a POTA Early Shift (6-hour window) or Late Shift (8-hour window) for your park. Click the emoji to see the exact UTC window. For multi-state parks, uses the official POTA state/province pin per the award rules.
 - When station callsign and operator callsign differ (after a Ctrl+O operator change), both are shown: `W1AW / NV3Y`.
@@ -416,7 +414,7 @@ Start flrig before launching Potatui. The app polls every 2 seconds and:
 - Syncs the Freq field in the entry form (unless you're actively editing it)
 - Automatically syncs USB/LSB sideband when you change mode or frequency
 
-If flrig is not running, everything works normally. The header shows `● flrig: offline` in red. Frequency and band are taken from whatever is in the Freq entry field.
+If flrig is not running, everything works normally. Frequency and band are taken from whatever is in the Freq entry field. The flrig connection status is visible by clicking the `net` pill in the header.
 
 When you QSY to a spot (F5) or set a run frequency (F2), Potatui calls flrig to tune the radio automatically. If flrig is offline a warning toast is shown but the frequency is still updated in the display.
 
