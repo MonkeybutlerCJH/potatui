@@ -286,7 +286,7 @@ Press **Ctrl+O** to open the operator change dialog. The new callsign is used fo
 
 ## Self-Spot (F6)
 
-Opens a dialog pre-filled with your current frequency, mode, park, and callsign. Add optional comments (e.g. `CQ POTA 20m SSB`) and submit. Shows a toast notification on success or failure.
+Opens a dialog pre-filled with your current frequency, mode, park, and callsign. Add optional comments (e.g. `CQ POTA 20m SSB`) and submit. Your spot is posted to the [POTA spots page](https://pota.app/#/spots) where other operators can find your activation. Shows a toast notification on success or failure.
 
 Set your frequency accurately with F2 before spotting.
 
@@ -294,7 +294,7 @@ Set your frequency accurately with F2 before spotting.
 
 ## Commander (F7)
 
-The Commander replaces the old Voice Keyer with a more flexible system that supports both **CAT commands** (sent to the rig via flrig) and **console commands** (run as shell commands on your computer).
+Supports both **CAT commands** (sent to the rig via flrig) and **console commands** (run as shell commands on your computer).
 
 - **F7** — opens the Commander panel with two tabs: Fire and Configure.
 - **Fire tab** — shows all configured slots with their labels. Click a button or use its assigned shortcut to fire.
@@ -309,8 +309,6 @@ Commander configuration is stored separately from the main config file, at:
 | Linux    | `~/.config/potatui/commands.json` |
 | macOS    | `~/Library/Application Support/potatui/commands.json` |
 | Windows  | `%APPDATA%\potatui\commands.json` |
-
-**Legacy voice keyer migration:** if you had VK1–VK5 commands configured in an older version of Potatui, they are automatically imported as CAT slots on first run with the new Commander.
 
 **CAT command examples:**
 
@@ -366,6 +364,8 @@ The database is stored in the platform data directory:
 | macOS    | `~/Library/Application Support/potatui/parks.csv` |
 | Windows  | `%LOCALAPPDATA%\potatui\parks.csv` |
 
+**Manual update:** press **F1** from the logger screen to open the About panel, which shows the current database date and has a button to trigger a manual refresh.
+
 **Offline mode (Ctrl+N):** press Ctrl+N to disable all internet calls for the current session. Useful when operating without connectivity. The header shows a manual-offline indicator. You can also set `offline_mode = true` in `config.toml` to default to offline on every launch.
 
 ---
@@ -406,6 +406,8 @@ The ADIF includes `MY_SIG=POTA`, `MY_SIG_INFO=<park ref>`, `STATION_CALLSIGN`, `
 ---
 
 ## flrig Integration
+
+flrig is a free rig control application that Potatui uses to read and set your radio's frequency and mode. [Download flrig](https://sourceforge.net/projects/fldigi/files/flrig/) — see the [initial setup guide](https://www.w1hkj.org/flrig-help/initial_setup.html) to get it talking to your rig.
 
 Start flrig before launching Potatui. The app polls every 2 seconds and:
 
