@@ -528,7 +528,22 @@ class LoggerScreen(Screen):
             band = freq_to_band(freq)
             if band != "?":
                 self.band = band
-            if mode:
+            if mode and mode != self.mode:
+                old_mode = self.mode
+                self.mode = mode
+                # Update RST defaults when the mode changes (e.g. rig switched
+                # CW ↔ SSB), but only if the fields still hold the old default
+                # so we don't clobber a value the user has already typed.
+                old_default = _rst_default(old_mode)
+                new_default = _rst_default(mode)
+                if old_default != new_default:
+                    rst_sent = self.query_one("#f-rst-sent", Input)
+                    rst_rcvd = self.query_one("#f-rst-rcvd", Input)
+                    if rst_sent.value == old_default:
+                        rst_sent.value = new_default
+                    if rst_rcvd.value == old_default:
+                        rst_rcvd.value = new_default
+            elif mode:
                 self.mode = mode
             # Sync the freq input field (only if it doesn't have focus —
             # don't clobber what the user is typing)
