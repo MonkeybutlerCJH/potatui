@@ -175,6 +175,7 @@ class EditQSOModal(ModalScreen[dict | None]):
                 yield Select(
                     [(m, m) for m in MODES],
                     value=self.qso.mode if self.qso.mode in MODES else Select.BLANK,
+                    allow_blank=True,
                     id="e-mode",
                 )
             with Horizontal(classes="edit-row"):
