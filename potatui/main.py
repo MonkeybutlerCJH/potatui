@@ -43,7 +43,6 @@ class PotaLogApp(App):
 
     TITLE = "Potatui"
     SUB_TITLE = "Parks on the Air Logger"
-    MAX_REFRESH_RATE = 10  # 60fps default is overkill and hammers ConPTY on Windows
 
     def on_mount(self) -> None:
         self._config = load_config()
@@ -119,6 +118,9 @@ def run() -> None:
     if sys.platform == "win32":
         # Reduce ConPTY encoding overhead.
         os.environ.setdefault("PYTHONUTF8", "1")
+        # Cap render rate — 60fps default hammers ConPTY on Windows.
+        # Controlled via TEXTUAL_FPS (textual.constants.MAX_FPS).
+        os.environ.setdefault("TEXTUAL_FPS", "10")
         # Textual animations add render work with no value on ConPTY.
         os.environ.setdefault("TEXTUAL_ANIMATIONS", "none")
         # SelectorEventLoop has lower overhead than the default ProactorEventLoop
