@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import os
 import socket
 import sys
 
@@ -113,6 +115,22 @@ class PotaLogApp(App):
 
 
 def run() -> None:
+    if sys.platform == "win32":
+        # Reduce ConPTY encoding overhead.
+        os.environ.setdefault("PYTHONUTF8", "1")
+        # Cap render rate — 60fps default hammers ConPTY on Windows.
+        # Controlled via TEXTUAL_FPS (textual.constants.MAX_FPS).
+        os.environ.setdefault("TEXTUAL_FPS", "10")
+        # Textual animations add render work with no value on ConPTY.
+        os.environ.setdefault("TEXTUAL_ANIMATIONS", "none")
+        # SelectorEventLoop has lower overhead than the default ProactorEventLoop
+        # (IOCP) for the short, frequent socket reads that Textual and the QRZ/
+        # HamDB thread-pool pattern produce.  Trade-off: ProactorEventLoop is
+        # required for asyncio subprocess pipes; any subprocess interaction here
+        # (Commander) uses subprocess.run in a thread, not asyncio subprocesses,
+        # so this is safe for the current codebase.
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
     if not _acquire_instance_lock():
         print("Potatui is already running.", file=sys.stderr)
         sys.exit(1)

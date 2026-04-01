@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import threading
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -57,6 +58,9 @@ class QRZClient:
         self._error_log: list[str] = []
         self._last_ok: bool | None = None  # None = not yet tested
         self._http = httpx.Client(timeout=10, headers={"User-Agent": _AGENT})
+        # Prevents concurrent backfill threads from stampeding the QRZ session
+        # endpoint when the key is absent or has just expired.
+        self._login_lock = threading.Lock()
 
     @property
     def configured(self) -> bool:
@@ -171,18 +175,26 @@ class QRZClient:
         return info
 
     def _fetch_blocking(self, callsign: str) -> QRZInfo | None:
-        """Synchronous fetch — login if needed, look up, retry once on session expiry."""
+        """Synchronous fetch — login if needed, look up, retry once on session expiry.
+
+        Runs in a thread via asyncio.to_thread. Uses a threading.Lock so concurrent
+        backfill threads don't stampede the QRZ login endpoint simultaneously.
+        """
         if not self._session_key:
-            if not self._login():
-                return None
+            with self._login_lock:
+                if not self._session_key:  # double-check after acquiring lock
+                    if not self._login():
+                        return None
 
         info = self._do_lookup(callsign)
 
         # Session may have expired — try re-login once
         if info is None and self._session_key:
-            self._session_key = None
-            if self._login():
-                info = self._do_lookup(callsign)
+            with self._login_lock:
+                self._session_key = None
+                if not self._login():
+                    return None
+            info = self._do_lookup(callsign)
 
         return info
 

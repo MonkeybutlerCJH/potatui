@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 
 import httpx
@@ -21,6 +22,9 @@ class HamDbClient:
     def __init__(self) -> None:
         self._cache: dict[str, QRZInfo | None] = {}
         self._error_log: list[str] = []
+        # Sync client with connection pooling, run via asyncio.to_thread.
+        # Consistent with QRZClient and avoids AsyncClient lifecycle management.
+        self._http = httpx.Client(timeout=10)
 
     @property
     def error_log(self) -> list[str]:
@@ -38,15 +42,14 @@ class HamDbClient:
         callsign = callsign.upper().split("/")[0]
         if callsign in self._cache:
             return self._cache[callsign]
-        result = await self._do_lookup(callsign)
+        result = await asyncio.to_thread(self._do_lookup, callsign)
         self._cache[callsign] = result
         return result
 
-    async def _do_lookup(self, callsign: str) -> QRZInfo | None:
+    def _do_lookup(self, callsign: str) -> QRZInfo | None:
         url = _HAMDB_URL.format(call=callsign.lower())
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                r = await client.get(url)
+            r = self._http.get(url)
             data = r.json()
             hamdb = data.get("hamdb", {})
             if hamdb.get("messages", {}).get("status") == "NOT_FOUND":

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from datetime import UTC, datetime, timedelta
 
 from textual import events, on, work
@@ -160,6 +161,7 @@ class LoggerScreen(Screen):
         self._offline: bool = config.offline_mode  # True = skip all internet calls
         self._offline_manual: bool = config.offline_mode  # True = user explicitly set offline
         self._current_utc_date = datetime.utcnow().date()
+        self._clock_tick_count: int = 0
         self._log_paths = self._make_log_paths()
         self._json_path = self._make_json_path()
 
@@ -459,8 +461,12 @@ class LoggerScreen(Screen):
         self.query_one("#hdr-utc", Static).update(utc_str)
         self.query_one("#hdr-elapsed", Static).update(elapsed_str)
         self._update_qso_count()
-        self._update_last_spotted_bar()
-        self._update_shift_indicator()
+        # On Windows/ConPTY each widget update is expensive. These two status
+        # indicators change slowly, so throttle them to every 5s on Windows.
+        self._clock_tick_count += 1
+        if sys.platform != "win32" or self._clock_tick_count % 5 == 0:
+            self._update_last_spotted_bar()
+            self._update_shift_indicator()
 
     @work(exclusive=True, group="self-spot-poll")
     async def _poll_spots_for_self(self) -> None:
@@ -1677,13 +1683,24 @@ class LoggerScreen(Screen):
             self.notify("All contacts already have names")
             return
         self.notify(f"Looking up {len(targets)} contact(s)…")
+
+        # Run up to 5 lookups concurrently. QRZClient serialises its own login
+        # internally, so concurrent callers are safe.
+        sem = asyncio.Semaphore(5)
+
+        async def _one(qso):
+            async with sem:
+                info = None
+                if self._qrz.configured:
+                    info = await self._qrz.lookup(qso.callsign)
+                if info is None:
+                    info = await self._hamdb.lookup(qso.callsign)
+                return qso, info
+
+        results = await asyncio.gather(*[_one(q) for q in targets])
+
         updated = 0
-        for qso in targets:
-            info = None
-            if self._qrz.configured:
-                info = await self._qrz.lookup(qso.callsign)
-            if info is None:
-                info = await self._hamdb.lookup(qso.callsign)
+        for qso, info in results:
             if info:
                 state = qso.state if qso.is_p2p else (info.state or qso.state)
                 self.session.update_qso(qso.qso_id, name=info.name, state=state)
