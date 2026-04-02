@@ -129,6 +129,8 @@ class LoggerScreen(Screen):
         self._flrig_online = False
         self._flrig_online_prev: bool | None = None  # tracks previous state for change detection
         self._flrig_log: list[str] = []  # timestamped connection events
+        self._flrig_retry_delay: float = 2.0   # current back-off interval (seconds)
+        self._flrig_next_poll: float = 0.0     # monotonic time after which next attempt is allowed
         self._wsjtx = WsjtxClient(config.wsjtx_host, config.wsjtx_port)
         self._wsjtx_online = False
         self._wsjtx_online_prev: bool | None = None
@@ -522,13 +524,29 @@ class LoggerScreen(Screen):
 
     @work(exclusive=True, group="flrig-poll")
     async def _poll_flrig(self) -> None:
-        import asyncio
-        freq, mode = await asyncio.to_thread(
-            lambda: (self.flrig.get_frequency(), self.flrig.get_mode())
-        )
+        import asyncio, time
+        # Exponential back-off when flrig is unreachable: 2 → 4 → 8 → 16 → 30s (cap).
+        # The set_interval(2.0) keeps firing, but we skip early until the delay expires.
+        if time.monotonic() < self._flrig_next_poll:
+            return
+
+        def _poll_fn() -> tuple[float | None, str | None]:
+            # Fast TCP pre-check: if nothing is listening, this returns in <1 ms
+            # (ConnectionRefusedError) instead of blocking for the 1s XML-RPC timeout.
+            if not self.flrig._port_open():
+                return None, None
+            freq = self.flrig.get_frequency()
+            # Skip mode fetch if frequency already failed — flrig is unreachable.
+            mode = self.flrig.get_mode() if freq is not None else None
+            return freq, mode
+
+        freq, mode = await asyncio.to_thread(_poll_fn)
 
         now_online = freq is not None
         if freq is not None:
+            # Reconnected — reset back-off to normal 2s cadence
+            self._flrig_retry_delay = 2.0
+            self._flrig_next_poll = 0.0
             self._flrig_online = True
             self.freq_khz = freq
             band = freq_to_band(freq)
@@ -561,6 +579,10 @@ class LoggerScreen(Screen):
             # XML-RPC server blocks completely during voice playback, making
             # legitimate poll calls time out even though flrig is healthy.
             self._flrig_online = False
+            # Back off: double the retry delay up to 30s so we're not hammering
+            # a dead connection with 1s-timeout probes every 2 seconds.
+            self._flrig_retry_delay = min(self._flrig_retry_delay * 2, 30.0)
+            self._flrig_next_poll = time.monotonic() + self._flrig_retry_delay
 
         # Log connection state transitions (ignore transient drops during CAT)
         effective_online = now_online or self.flrig.cat_in_flight
