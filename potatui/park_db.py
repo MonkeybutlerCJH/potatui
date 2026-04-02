@@ -18,6 +18,16 @@ from potatui.log import get_logger
 
 _log = get_logger("park_db")
 
+_http: httpx.AsyncClient | None = None
+
+
+def _client() -> httpx.AsyncClient:
+    global _http
+    if _http is None:
+        from potatui._ssl_ctx import ssl_ctx
+        _http = httpx.AsyncClient(verify=ssl_ctx)
+    return _http
+
 if TYPE_CHECKING:
     from potatui.pota_api import ParkInfo
 
@@ -174,10 +184,9 @@ async def download_parks() -> tuple[bool, str]:
     _t0 = time.perf_counter()
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
-            resp = await client.get(PARKS_CSV_URL)
-            resp.raise_for_status()
-            PARKS_CSV.write_bytes(resp.content)
+        resp = await _client().get(PARKS_CSV_URL, timeout=60, follow_redirects=True)
+        resp.raise_for_status()
+        PARKS_CSV.write_bytes(resp.content)
         kb = len(resp.content) // 1024
         _log.debug("download_parks: %.0f ms, %d KB", (time.perf_counter() - _t0) * 1000, kb)
         return True, f"Downloaded {kb} KB"
@@ -195,8 +204,7 @@ async def download_parks() -> tuple[bool, str]:
 async def check_internet(host: str = "https://api.pota.app") -> bool:
     """Quick connectivity check — True if host is reachable."""
     try:
-        async with httpx.AsyncClient(timeout=3, follow_redirects=True) as client:
-            await client.head(host)
+        await _client().head(host, timeout=3, follow_redirects=True)
         return True
     except Exception:
         return False

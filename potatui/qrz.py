@@ -57,7 +57,8 @@ class QRZClient:
         self._cache: dict[str, QRZInfo | None] = {}
         self._error_log: list[str] = []
         self._last_ok: bool | None = None  # None = not yet tested
-        self._http = httpx.Client(timeout=10, headers={"User-Agent": _AGENT})
+        from potatui._ssl_ctx import ssl_ctx
+        self._http = httpx.Client(timeout=10, headers={"User-Agent": _AGENT}, verify=ssl_ctx)
         # Prevents concurrent backfill threads from stampeding the QRZ session
         # endpoint when the key is absent or has just expired.
         self._login_lock = threading.Lock()

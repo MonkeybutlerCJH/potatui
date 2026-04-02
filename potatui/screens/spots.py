@@ -336,8 +336,14 @@ class SpotsScreen(Screen):
 
         refs = list({s.reference for s in spots if s.reference})
 
+        # Limit concurrency — without a semaphore, asyncio.gather fires all
+        # coroutines simultaneously and each one that misses the local park_db
+        # cache would hit the POTA API at the same instant.
+        sem = asyncio.Semaphore(10)
+
         async def _get_grid(ref: str) -> tuple[str, str]:
-            info = await lookup_park(ref, self.config.pota_api_base)
+            async with sem:
+                info = await lookup_park(ref, self.config.pota_api_base)
             return ref, (info.grid if info and info.grid else "")
 
         results = await asyncio.gather(*[_get_grid(r) for r in refs])

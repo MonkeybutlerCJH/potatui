@@ -24,7 +24,8 @@ class HamDbClient:
         self._error_log: list[str] = []
         # Sync client with connection pooling, run via asyncio.to_thread.
         # Consistent with QRZClient and avoids AsyncClient lifecycle management.
-        self._http = httpx.Client(timeout=10)
+        from potatui._ssl_ctx import ssl_ctx
+        self._http = httpx.Client(timeout=10, verify=ssl_ctx)
 
     @property
     def error_log(self) -> list[str]:

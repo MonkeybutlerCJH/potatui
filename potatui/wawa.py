@@ -72,7 +72,7 @@ async def find_nearest_wawa_osm(
     Raises on HTTP/timeout errors so the caller can distinguish network
     failure from "not found".
     """
-    import httpx
+    import httpx  # local import — wawa is an easter egg, keep it out of startup cost
 
     from potatui.qrz import haversine_km
 
@@ -90,8 +90,10 @@ async def find_nearest_wawa_osm(
         f'out body;'
     )
 
+    from potatui._ssl_ctx import ssl_ctx
+
     async with httpx.AsyncClient(
-        timeout=30, headers={"User-Agent": _UA}
+        timeout=30, headers={"User-Agent": _UA}, verify=ssl_ctx
     ) as client:
         data = await _overpass_get(client, query)
 

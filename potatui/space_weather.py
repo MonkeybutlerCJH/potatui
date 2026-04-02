@@ -17,6 +17,20 @@ from potatui.log import get_logger
 
 _log = get_logger("space_weather")
 
+# Module-level persistent client — avoids reconstructing the SSL context and
+# reading certifi's cacert.pem on every fetch call. fetch_space_weather() uses
+# asyncio.gather, so without this all four coroutines would construct their own
+# AsyncClient simultaneously in the same event loop tick.
+_http: httpx.AsyncClient | None = None
+
+
+def _client() -> httpx.AsyncClient:
+    global _http
+    if _http is None:
+        from potatui._ssl_ctx import ssl_ctx
+        _http = httpx.AsyncClient(verify=ssl_ctx)
+    return _http
+
 _KP_URL = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
 _ALERTS_URL = "https://services.swpc.noaa.gov/products/alerts.json"
 _SFI_URL = "https://services.swpc.noaa.gov/products/summary/10cm-flux.json"
@@ -106,10 +120,9 @@ def kp_traditional(kp: float) -> str:
 async def fetch_kp() -> list[KpReading]:
     """Fetch the last 8 Kp readings, newest first."""
     _t0 = time.perf_counter()
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(_KP_URL)
-        resp.raise_for_status()
-        data = resp.json()
+    resp = await _client().get(_KP_URL, timeout=10.0)
+    resp.raise_for_status()
+    data = resp.json()
     # data is a list of dicts: {"time_tag": "...", "Kp": 3.0, ...}
     readings: list[KpReading] = []
     for row in data:
@@ -126,10 +139,9 @@ async def fetch_kp() -> list[KpReading]:
 async def fetch_sfi() -> float | None:
     """Fetch the current 10.7cm solar flux index (SFI)."""
     _t0 = time.perf_counter()
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(_SFI_URL)
-        resp.raise_for_status()
-        data = resp.json()
+    resp = await _client().get(_SFI_URL, timeout=10.0)
+    resp.raise_for_status()
+    data = resp.json()
     _log.debug("fetch_sfi: %.0f ms", (time.perf_counter() - _t0) * 1000)
     return float(data[0]["flux"])
 
@@ -137,10 +149,9 @@ async def fetch_sfi() -> float | None:
 async def fetch_alerts() -> list[SpaceWeatherAlert]:
     """Fetch active geomagnetic alerts from the past 8 hours."""
     _t0 = time.perf_counter()
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(_ALERTS_URL)
-        resp.raise_for_status()
-        data = resp.json()
+    resp = await _client().get(_ALERTS_URL, timeout=10.0)
+    resp.raise_for_status()
+    data = resp.json()
 
     cutoff = datetime.now(UTC) - timedelta(hours=8)
     alerts: list[SpaceWeatherAlert] = []
@@ -197,10 +208,9 @@ async def fetch_muf(lat: float, lon: float) -> MufData:
             return result
 
     _t0 = time.perf_counter()
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(_MUF_URL, params={"grid": f"{lat},{lon}"})
-        resp.raise_for_status()
-        data = resp.json()
+    resp = await _client().get(_MUF_URL, params={"grid": f"{lat},{lon}"}, timeout=10.0)
+    resp.raise_for_status()
+    data = resp.json()
 
     mufd = float(data["mufd"])
     fof2 = float(data["fof2"])
@@ -214,10 +224,9 @@ async def fetch_muf(lat: float, lon: float) -> MufData:
 
 async def fetch_kp_forecast() -> KpForecastData | None:
     """Fetch and parse the NOAA 3-day Kp index forecast."""
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(_FORECAST_URL)
-        resp.raise_for_status()
-        text = resp.text
+    resp = await _client().get(_FORECAST_URL, timeout=10.0)
+    resp.raise_for_status()
+    text = resp.text
 
     lines = text.splitlines()
 

@@ -16,6 +16,21 @@ from potatui.log import get_logger
 
 _log = get_logger("pota_api")
 
+# Module-level persistent client — avoids constructing a new SSL context and
+# reading the CA bundle (certifi's cacert.pem, ~237 KB) on every call.
+# With asyncio.gather the old pattern caused N clients to be constructed
+# synchronously in the same event loop tick before the first await, producing
+# a burst of N identical disk reads in microseconds.
+_http: httpx.AsyncClient | None = None
+
+
+def _client() -> httpx.AsyncClient:
+    global _http
+    if _http is None:
+        from potatui._ssl_ctx import ssl_ctx
+        _http = httpx.AsyncClient(verify=ssl_ctx)
+    return _http
+
 PARK_REF_RE = re.compile(r"^[A-Z]{1,4}-[A-Z0-9]{1,6}$", re.IGNORECASE)
 
 
@@ -84,46 +99,45 @@ async def lookup_park(ref: str, base_url: str) -> ParkInfo | None:
     _log.debug("lookup_park %s: fetching from API", ref)
     _t0 = time.perf_counter()
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(url)
-            if resp.status_code == 200:
-                data = resp.json()
-                location = data.get("locationName", "")
-                # Parse locationDesc ("US-VA,US-NC") into list of 2-letter abbrevs
-                loc_desc = data.get("locationDesc", "")
-                locations = []
-                for part in loc_desc.split(","):
-                    part = part.strip()
-                    if "-" in part:
-                        locations.append(part.split("-", 1)[1])
-                    elif part:
-                        locations.append(part)
-                # Primary state: first parsed location, then API fields, then name map
-                state = (
-                    (locations[0] if locations else "")
-                    or data.get("stateAbbrev", "")
-                    or data.get("state", "")
-                    or _US_STATE_ABBREV.get(location, "")
-                )
-                lat_s = data.get("latitude", data.get("lat", ""))
-                lon_s = data.get("longitude", data.get("lon", ""))
-                try:
-                    park_lat: float | None = float(lat_s) if lat_s else None
-                    park_lon: float | None = float(lon_s) if lon_s else None
-                except (ValueError, TypeError):
-                    park_lat, park_lon = None, None
-                park = ParkInfo(
-                    reference=data.get("reference", ref).upper(),
-                    name=data.get("name", "Unknown Park"),
-                    location=location,
-                    state=state.strip(),
-                    grid=data.get("grid6", data.get("grid4", "")),
-                    locations=locations,
-                    lat=park_lat,
-                    lon=park_lon,
-                )
-                _log.debug("lookup_park %s: API returned in %.0f ms", ref, (time.perf_counter() - _t0) * 1000)
-                return park
+        resp = await _client().get(url, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            location = data.get("locationName", "")
+            # Parse locationDesc ("US-VA,US-NC") into list of 2-letter abbrevs
+            loc_desc = data.get("locationDesc", "")
+            locations = []
+            for part in loc_desc.split(","):
+                part = part.strip()
+                if "-" in part:
+                    locations.append(part.split("-", 1)[1])
+                elif part:
+                    locations.append(part)
+            # Primary state: first parsed location, then API fields, then name map
+            state = (
+                (locations[0] if locations else "")
+                or data.get("stateAbbrev", "")
+                or data.get("state", "")
+                or _US_STATE_ABBREV.get(location, "")
+            )
+            lat_s = data.get("latitude", data.get("lat", ""))
+            lon_s = data.get("longitude", data.get("lon", ""))
+            try:
+                park_lat: float | None = float(lat_s) if lat_s else None
+                park_lon: float | None = float(lon_s) if lon_s else None
+            except (ValueError, TypeError):
+                park_lat, park_lon = None, None
+            park = ParkInfo(
+                reference=data.get("reference", ref).upper(),
+                name=data.get("name", "Unknown Park"),
+                location=location,
+                state=state.strip(),
+                grid=data.get("grid6", data.get("grid4", "")),
+                locations=locations,
+                lat=park_lat,
+                lon=park_lon,
+            )
+            _log.debug("lookup_park %s: API returned in %.0f ms", ref, (time.perf_counter() - _t0) * 1000)
+            return park
     except Exception as exc:
         _log.debug("lookup_park %s: failed in %.0f ms — %s", ref, (time.perf_counter() - _t0) * 1000, exc)
     return None
@@ -134,36 +148,35 @@ async def fetch_spots(base_url: str) -> list[Spot]:
     url = f"{base_url.rstrip('/')}/spot/activator"
     _t0 = time.perf_counter()
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            raw: list[dict[str, Any]] = resp.json()
-            spots = []
-            for item in raw:
-                try:
-                    freq_khz = float(item.get("frequency", 0))
-                    loc_desc = item.get("locationDesc", "")
-                    first_loc = loc_desc.split(",")[0].strip() if loc_desc else ""
-                    location = first_loc.split("-", 1)[-1] if "-" in first_loc else first_loc
-                    spots.append(
-                        Spot(
-                            activator=item.get("activator", ""),
-                            reference=item.get("reference", ""),
-                            park_name=item.get("name", item.get("parkName", "")),
-                            frequency=freq_khz,
-                            band=_freq_to_band(freq_khz),
-                            mode=item.get("mode", ""),
-                            spotter=item.get("spotter", ""),
-                            spot_time=item.get("spotTime", ""),
-                            comments=item.get("comments", ""),
-                            location=location.strip(),
-                            grid=item.get("grid6", item.get("grid4", "")),
-                        )
+        resp = await _client().get(url, timeout=15)
+        resp.raise_for_status()
+        raw: list[dict[str, Any]] = resp.json()
+        spots = []
+        for item in raw:
+            try:
+                freq_khz = float(item.get("frequency", 0))
+                loc_desc = item.get("locationDesc", "")
+                first_loc = loc_desc.split(",")[0].strip() if loc_desc else ""
+                location = first_loc.split("-", 1)[-1] if "-" in first_loc else first_loc
+                spots.append(
+                    Spot(
+                        activator=item.get("activator", ""),
+                        reference=item.get("reference", ""),
+                        park_name=item.get("name", item.get("parkName", "")),
+                        frequency=freq_khz,
+                        band=_freq_to_band(freq_khz),
+                        mode=item.get("mode", ""),
+                        spotter=item.get("spotter", ""),
+                        spot_time=item.get("spotTime", ""),
+                        comments=item.get("comments", ""),
+                        location=location.strip(),
+                        grid=item.get("grid6", item.get("grid4", "")),
                     )
-                except Exception:
-                    continue
-            _log.debug("fetch_spots: %.0f ms, %d spots", (time.perf_counter() - _t0) * 1000, len(spots))
-            return spots
+                )
+            except Exception:
+                continue
+        _log.debug("fetch_spots: %.0f ms, %d spots", (time.perf_counter() - _t0) * 1000, len(spots))
+        return spots
     except Exception as exc:
         _log.debug("fetch_spots: failed in %.0f ms — %s", (time.perf_counter() - _t0) * 1000, exc)
         return []
@@ -190,11 +203,10 @@ async def self_spot(
         "comments": comments,
     }
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(url, json=payload)
-            if resp.status_code in (200, 201):
-                return True, "Spot posted successfully"
-            return False, f"API error {resp.status_code}: {resp.text[:100]}"
+        resp = await _client().post(url, json=payload, timeout=10)
+        if resp.status_code in (200, 201):
+            return True, "Spot posted successfully"
+        return False, f"API error {resp.status_code}: {resp.text[:100]}"
     except httpx.TimeoutException:
         return False, "Request timed out"
     except Exception as e:
@@ -217,21 +229,20 @@ async def fetch_location_pins(base_url: str) -> dict[str, tuple[float, float]]:
     url = f"{base_url.rstrip('/')}/locations"
     _t0 = time.perf_counter()
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(url)
-            if resp.status_code == 200:
-                result: dict[str, tuple[float, float]] = {}
-                for item in resp.json():
-                    desc = item.get("locationDesc", "").strip()
-                    if not desc:
-                        continue
-                    try:
-                        result[desc] = (float(item["latitude"]), float(item["longitude"]))
-                    except (KeyError, ValueError, TypeError):
-                        continue
-                _location_pins = result
-                _log.debug("fetch_location_pins: %.0f ms, %d entries", (time.perf_counter() - _t0) * 1000, len(result))
-                return result
+        resp = await _client().get(url, timeout=10)
+        if resp.status_code == 200:
+            result: dict[str, tuple[float, float]] = {}
+            for item in resp.json():
+                desc = item.get("locationDesc", "").strip()
+                if not desc:
+                    continue
+                try:
+                    result[desc] = (float(item["latitude"]), float(item["longitude"]))
+                except (KeyError, ValueError, TypeError):
+                    continue
+            _location_pins = result
+            _log.debug("fetch_location_pins: %.0f ms, %d entries", (time.perf_counter() - _t0) * 1000, len(result))
+            return result
     except Exception as exc:
         _log.debug("fetch_location_pins: failed in %.0f ms — %s", (time.perf_counter() - _t0) * 1000, exc)
     return {}

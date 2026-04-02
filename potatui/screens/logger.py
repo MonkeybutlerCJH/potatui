@@ -720,12 +720,12 @@ class LoggerScreen(Screen):
 
     @work(exclusive=True, group="net-check")
     async def _check_internet_connectivity(self) -> None:
+        if self._offline_manual:
+            # Manual override — skip the probe entirely, don't touch the indicator
+            return
         from potatui.park_db import check_internet
         online = await check_internet(self.config.pota_api_base)
         net_widget = self.query_one("#hdr-net", Static)
-        if self._offline_manual:
-            # Manual override — keep showing offline-manual indicator, don't change _offline
-            return
         if online:
             net_widget.update("net")
             net_widget.set_classes("net-online")
@@ -1627,7 +1627,27 @@ class LoggerScreen(Screen):
 
     def action_settings(self) -> None:
         from potatui.screens.settings import SettingsScreen
-        self.app.push_screen(SettingsScreen(self.config))
+
+        def _on_settings_closed(_: object) -> None:
+            """Sync offline flags if the user toggled offline mode in settings."""
+            new_offline = self.config.offline_mode
+            if new_offline == self._offline_manual:
+                return
+            self._offline = new_offline
+            self._offline_manual = new_offline
+            net_widget = self.query_one("#hdr-net", Static)
+            if self._offline:
+                net_widget.update("OFFL")
+                net_widget.set_classes("net-offline-manual")
+                self.notify("Offline mode ON — QRZ, spots, and self-spotting disabled", severity="warning")
+            else:
+                net_widget.update("net")
+                net_widget.set_classes("net-unknown")
+                self.notify("Offline mode OFF — network features re-enabled")
+                self._check_internet_connectivity()
+                self._poll_space_weather()
+
+        self.app.push_screen(SettingsScreen(self.config), _on_settings_closed)
 
     def action_end_session(self) -> None:
         def on_confirm(confirmed: bool | None) -> None:
