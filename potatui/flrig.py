@@ -48,6 +48,8 @@ _LOG_MAX = 100
 
 class FlrigClient:
     def __init__(self, host: str = "localhost", port: int = 12345) -> None:
+        self._host = host
+        self._port = port
         self._url = f"http://{host}:{port}"
         # Two independent proxies: _proxy for polling (1s timeout),
         # _cat_proxy for CAT/command sends (longer timeout).  Keeping them
@@ -106,6 +108,19 @@ class FlrigClient:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def _port_open(self) -> bool:
+        """Fast TCP reachability check — completes in <1 ms when refused, 0.3 s max otherwise.
+
+        Called before every XML-RPC poll so we never block a thread-pool thread for
+        a full 1-second XML-RPC timeout when flrig simply isn't running.
+        """
+        import socket
+        try:
+            with socket.create_connection((self._host, self._port), timeout=0.3):
+                return True
+        except OSError:
+            return False
 
     def get_frequency(self) -> float | None:
         """Return current VFO frequency in kHz, or None if offline."""
