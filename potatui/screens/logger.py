@@ -616,16 +616,17 @@ class LoggerScreen(Screen):
 
         # QRZ/HamDB lookup for name, state, grid, distance (best-effort)
         info = None
-        if self._qrz.configured:
-            try:
-                info = await self._qrz.lookup(callsign)
-            except Exception:
-                info = None
-        if info is None:
-            try:
-                info = await self._hamdb.lookup(callsign)
-            except Exception:
-                info = None
+        if not self._offline:
+            if self._qrz.configured:
+                try:
+                    info = await self._qrz.lookup(callsign)
+                except Exception:
+                    info = None
+            if info is None:
+                try:
+                    info = await self._hamdb.lookup(callsign)
+                except Exception:
+                    info = None
 
         if info is not None:
             name = info.name or name  # prefer lookup; fall back to WSJT-X name
@@ -951,7 +952,7 @@ class LoggerScreen(Screen):
 
         async def _resolve_name_state(callsign: str) -> tuple[str, str]:
             """Return (name, state) for a callsign, doing a QRZ lookup in multi mode."""
-            if not multi or not self._qrz.configured:
+            if not multi or not self._qrz.configured or self._offline:
                 return form_name, form_state
             info = await self._qrz.lookup(callsign)
             # Ignore form values that were QRZ-auto-filled for a previous callsign;
