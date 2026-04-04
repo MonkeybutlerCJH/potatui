@@ -7,9 +7,8 @@ import datetime
 
 import pytest
 
-from potatui.adif import freq_to_band, _qso_to_adif
+from potatui.adif import _qso_to_adif, freq_to_band
 from potatui.session import QSO
-
 
 # --------------------------------------------------------------------------
 # Representative centre frequencies — should map to correct band

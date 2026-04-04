@@ -159,7 +159,7 @@ class FlrigClient:
         with self._lock:
             try:
                 result = self._get_proxy().rig.get_modes()
-                return [str(m) for m in result] if result else []
+                return [str(m) for m in result] if result else []  # type: ignore[union-attr]
             except Exception as exc:
                 self._append_log(f"get_modes FAIL  {type(exc).__name__}: {exc}")
                 self._reset()

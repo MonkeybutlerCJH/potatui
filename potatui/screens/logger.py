@@ -525,7 +525,8 @@ class LoggerScreen(Screen):
 
     @work(exclusive=True, group="flrig-poll")
     async def _poll_flrig(self) -> None:
-        import asyncio, time
+        import asyncio
+        import time
         # Exponential back-off when flrig is unreachable: 2 → 4 → 8 → 16 → 30s (cap).
         # The set_interval(2.0) keeps firing, but we skip early until the delay expires.
         if time.monotonic() < self._flrig_next_poll:

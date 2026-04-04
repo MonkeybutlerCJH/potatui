@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from typing import Any, cast
 
 from potatui.config import CONFIG_DIR
 
@@ -93,13 +94,13 @@ class ModeTranslations:
 # Load / save
 # ---------------------------------------------------------------------------
 
-def _load_raw() -> dict | None:
+def _load_raw() -> dict[str, Any] | None:
     """Return parsed JSON dict from the translations file, or None on failure."""
     if not TRANSLATIONS_PATH.exists():
         return None
     try:
         with open(TRANSLATIONS_PATH, encoding="utf-8") as f:
-            return json.load(f)
+            return cast("dict[str, Any]", json.load(f))
     except Exception:
         return None
 

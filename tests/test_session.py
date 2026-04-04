@@ -5,10 +5,7 @@
 
 from datetime import datetime
 
-import pytest
-
 from potatui.session import QSO, Session
-
 
 # --------------------------------------------------------------------------
 # Helpers

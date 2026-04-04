@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 
 from textual import on, work
 from textual.app import ComposeResult
@@ -15,6 +16,9 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Input, Label, Select, Static
 
 from potatui.config import Config
+
+if TYPE_CHECKING:
+    from potatui.flrig import FlrigClient
 from potatui.mode_map import (
     ModeTranslations,
     auto_map,
@@ -166,7 +170,7 @@ class ModeTranslationsScreen(Screen):
     def __init__(
         self,
         config: Config,
-        flrig_client: object | None = None,
+        flrig_client: FlrigClient | None = None,
     ) -> None:
         super().__init__()
         self.config = config
@@ -394,7 +398,7 @@ class ModeTranslationsScreen(Screen):
         t = self._collect()
         save_translations(t)
         if self._flrig_client is not None:
-            self._flrig_client.update_translations(t)  # type: ignore[attr-defined]
+            self._flrig_client.update_translations(t)
         self.dismiss()
 
     def action_cancel(self) -> None:

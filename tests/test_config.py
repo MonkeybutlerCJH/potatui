@@ -3,13 +3,11 @@
 
 """Tests for load_config() / save_config() round-trip in config.py."""
 
-from pathlib import Path
 
 import pytest
 
 import potatui.config as config_mod
 from potatui.config import Config, load_config, save_config
-
 
 # --------------------------------------------------------------------------
 # Fixture: redirect CONFIG_PATH / CONFIG_DIR to a tmp directory
