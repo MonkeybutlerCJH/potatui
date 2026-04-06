@@ -11,7 +11,7 @@ A terminal user interface (TUI) for logging Parks on the Air (POTA) activations.
 
 - **Built for activators** — fast logging, live POTA spots with one-press QSY, automatic ADIF export, and QRZ callsign lookup, all in a terminal that runs on any laptop you bring to the field.
 - **P2P park lookup** — dedicated P2P field does a live lookup, displays the park name and distance/bearing from your park, and auto-fills the State field with the state abbreviation.
-- **Callsign lookup** — name, location, distance, and direction from your park shown automatically as you type a callsign. First name and state auto-fill. Backfill (Ctrl+B) fills in missing names/states for all QSOs in a session. Uses QRZ XML if configured; falls back to HamDB.org (no account required) automatically.
+- **Callsign lookup** — name, location, distance, and direction from your park shown automatically as you type a callsign. First name and state auto-fill. Backfill (`B` in table mode) fills in missing names/states for all QSOs in a session. Uses QRZ XML if configured; falls back to HamDB.org (no account required) automatically.
 - **POTA spots browser** — live spot list with band/mode/sort/search filters, auto-refreshes every 60 seconds. QSY directly to a spot with one keypress (tunes flrig, pre-fills callsign and P2P park). Distance from your park shown per spot. Worked activators shown in green.
 - **Self-spotting** — post yourself to the POTA network from within the app. Your most recent spot is displayed live on the logging screen, showing who spotted you, how long ago, and any comments — colour-coded green/yellow/grey by age.
 - **Offline park database** — a local copy of the full POTA parks list is downloaded on first launch and refreshed every 30 days. Park lookups work even without internet. Toggle full offline mode with Ctrl+N.
@@ -244,9 +244,9 @@ W1AW | US-1234 Gifford Pinchot NF | 14:32z | 14225.0 kHz  20M  SSB | ● QSOs: 4
 | F10        | End session — rewrites full ADIF and exits                     |
 | Ctrl+N     | Toggle offline mode (skips all internet calls)                 |
 | Ctrl+O     | Change operator callsign                                       |
-| Ctrl+D     | Delete highlighted QSO (confirmation required)                 |
-| Ctrl+L     | Callsign lookup for selected QSO (table mode)                  |
-| Ctrl+B     | Backfill — fill missing names/states for all QSOs              |
+| D          | Delete highlighted QSO (table mode, confirmation required)     |
+| L          | Callsign lookup for selected QSO (table mode)                  |
+| B          | Backfill — fill missing names/states for all QSOs (table mode) |
 | Enter      | Log QSO (from entry form) / Edit QSO (from table)              |
 | Escape     | Return focus to Callsign field from QSO table                  |
 
@@ -260,7 +260,7 @@ Press **F2** to open the Set Run Frequency dialog. Type the new frequency in kHz
 
 Press **F4** to move focus into the QSO log table. Use arrow keys to select any QSO, then press **Enter** to open the edit dialog. Press **Enter** in any field or click **Save** to save changes. Press **F4** or **Escape** to return to the entry form.
 
-Press **Ctrl+L** to manually run a callsign lookup for the selected QSO and populate any missing name or state fields. To backfill all QSOs missing a name at once, press **Ctrl+B** from anywhere on the logger screen — this runs in the background without interrupting logging.
+Press **L** to manually run a callsign lookup for the selected QSO and populate any missing name or state fields. Press **B** to backfill all QSOs missing a name at once — this runs in the background without interrupting logging. Both keys are available in table mode (F4).
 
 ### Changing operators
 
@@ -357,8 +357,8 @@ The strip prefix shows the source (`QRZ:` or `HamDB:`).
 - The operator's **first name** is automatically filled into the Name field if empty.
 - The operator's **state** is automatically filled into the State field if empty and no P2P park has been entered.
 - **Multi-callsign mode**: when multiple callsigns are entered (comma-separated), one lookup strip is shown per callsign. Name and state auto-fill use the respective callsign's data.
-- **Ctrl+L** — manually re-run a lookup for the selected QSO (in table mode).
-- **Ctrl+B (backfill)** — when resuming a previous session, look up all QSOs missing a name or state. Runs in the background without interrupting logging.
+- **L** — manually re-run a lookup for the selected QSO (table mode).
+- **B (backfill)** — look up all QSOs missing a name or state (table mode). Runs in the background without interrupting logging.
 - Results are cached for the session — no duplicate API calls.
 
 **Sources (tried in order):**

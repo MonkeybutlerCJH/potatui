@@ -202,9 +202,9 @@ Fields: Callsign, Park Ref(s), Grid Square, Power (W), Rig, Antenna, Your State 
 | F10      | End session                               |
 | Ctrl+N   | Toggle offline mode                       |
 | Ctrl+O   | Change operator                           |
-| Ctrl+D   | Delete QSO                                |
-| Ctrl+L   | QRZ lookup selected QSO (table mode)      |
-| Ctrl+B   | QRZ backfill all QSOs                     |
+| D        | Delete QSO (table mode)                   |
+| L        | QRZ lookup selected QSO (table mode)      |
+| B        | QRZ backfill all QSOs (table mode)        |
 | Escape   | Clear entry form, return focus to callsign |
 
 **Reserved keys**: whenever a new `LoggerScreen` binding is added, also add the key to `RESERVED_KEYS` in `potatui/commands.py` so the F7 commander cannot assign it as a CAT/console shortcut.
@@ -307,9 +307,9 @@ Logger integration — `#qrz-info-container` (Vertical, `height: auto`) holds on
 - P2P park lookup overrides `#f-state` with `info.state` (2-letter abbrev from `_US_STATE_ABBREV`)
 - CSS class `.qrz-info-bar` (not ID) — states: `hidden` (display:none), `pending` (italic), `notfound` (muted), no extra class = result shown
 - Cleared on QSO log; name and state fields cleared when callsign field is emptied
-- Ctrl+L (table mode) and Ctrl+B backfill both use QRZ→HamDB fallback chain; no longer blocked when QRZ unconfigured
+- `L` (table mode) and `B` backfill both use QRZ→HamDB fallback chain; no longer blocked when QRZ unconfigured
 - Both return early with a warning toast when `self._offline` is True (offline mode guard)
-- **Ctrl+B concurrent backfill**: up to 5 lookups run concurrently via `asyncio.Semaphore(5)` + `asyncio.gather()`; `QRZClient` serialises its own login internally so concurrent callers are safe
+- **B concurrent backfill** (table mode): up to 5 lookups run concurrently via `asyncio.Semaphore(5)` + `asyncio.gather()`; `QRZClient` serialises its own login internally so concurrent callers are safe
 
 Park location fetch (`_fetch_park_location`):
 - `@work` on mount — sets `self._park_latlon` (used for QRZ distance calc) and `self._shift_lon` (used for shift window calc)
@@ -381,7 +381,7 @@ The voice keyer has been replaced by the Commander — a three-tab modal for CAT
 - `_get_cw_context()` reads live form fields (callsign, RST sent, state) and session data (operator, park refs, station callsign).
 - `_cmd_config` loaded via `load_commands(legacy_vk)` in `__init__`.
 
-**RESERVED_KEYS** (`commands.py`): `f1`–`f10`, `ctrl+s`, `ctrl+d`, `ctrl+n`, `ctrl+o`, `escape`, `enter`, `space`, `tab`, `backspace` — users cannot assign these as shortcuts.
+**RESERVED_KEYS** (`commands.py`): `f1`–`f10`, `ctrl+s`, `ctrl+n`, `ctrl+o`, `escape`, `enter`, `space`, `tab`, `backspace` — users cannot assign these as shortcuts. (`d`, `l`, `b` are table-mode-only and not reserved since Commander shortcuts only apply in entry-form mode.)
 
 ## Settings Screen
 

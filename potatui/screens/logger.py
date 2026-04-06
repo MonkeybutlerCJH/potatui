@@ -104,9 +104,9 @@ class LoggerScreen(Screen):
         Binding("ctrl+n", "toggle_offline", "Offline Mode", show=False),
         Binding("escape", "clear_form", "Clear / Back"),
         # Table-mode only (shown when QSO table is focused)
-        Binding("ctrl+d", "delete_qso", "Delete"),
-        Binding("ctrl+l", "qrz_lookup_selected", "Lookup"),
-        Binding("ctrl+b", "qrz_backfill", "Backfill All"),
+        Binding("d", "delete_qso", "Delete"),
+        Binding("l", "qrz_lookup_selected", "Lookup"),
+        Binding("b", "qrz_backfill", "Backfill All"),
     ]
 
     CSS_PATH = "logger.tcss"

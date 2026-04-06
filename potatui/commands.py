@@ -19,7 +19,7 @@ NUM_SLOTS = 5
 # Keys reserved by LoggerScreen that users cannot assign as command shortcuts.
 RESERVED_KEYS: frozenset[str] = frozenset({
     "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
-    "ctrl+s", "ctrl+d", "ctrl+n", "ctrl+o", "ctrl+l", "ctrl+b", "escape",
+    "ctrl+s", "ctrl+n", "ctrl+o", "escape",
     "enter", "space", "tab", "backspace",
 })
 
