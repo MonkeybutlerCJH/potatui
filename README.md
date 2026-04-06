@@ -247,6 +247,7 @@ W1AW | US-1234 Gifford Pinchot NF | 14:32z | 14225.0 kHz  20M  SSB | ● QSOs: 4
 | D          | Delete highlighted QSO (table mode, confirmation required)     |
 | L          | Callsign lookup for selected QSO (table mode)                  |
 | B          | Backfill — fill missing names/states for all QSOs (table mode) |
+| S          | Spot P2P activator — open pre-filled spot dialog for selected QSO (table mode, P2P contacts only) |
 | Enter      | Log QSO (from entry form) / Edit QSO (from table)              |
 | Escape     | Return focus to Callsign field from QSO table                  |
 
@@ -261,6 +262,8 @@ Press **F2** to open the Set Run Frequency dialog. Type the new frequency in kHz
 Press **F4** to move focus into the QSO log table. Use arrow keys to select any QSO, then press **Enter** to open the edit dialog. Press **Enter** in any field or click **Save** to save changes. Press **F4** or **Escape** to return to the entry form.
 
 Press **L** to manually run a callsign lookup for the selected QSO and populate any missing name or state fields. Press **B** to backfill all QSOs missing a name at once — this runs in the background without interrupting logging. Both keys are available in table mode (F4).
+
+Press **S** on a P2P QSO in table mode to open a spot dialog for that activator. Fields are pre-filled from the logged QSO: their callsign as activator, your operator callsign as spotter, the frequency and mode from the QSO, their park ref, and a comment like `TU from US-1234 WA`. All fields are editable before posting. Shows a warning toast if the selected QSO is not a P2P contact.
 
 ### Changing operators
 
