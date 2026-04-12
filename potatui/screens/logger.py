@@ -106,9 +106,13 @@ class LoggerScreen(Screen):
         Binding("escape", "clear_form", "Clear / Back"),
         # Table-mode only (shown when QSO table is focused)
         Binding("d", "delete_qso", "Delete"),
+        Binding("D", "delete_qso", "Delete", show=False),
         Binding("l", "qrz_lookup_selected", "Lookup"),
+        Binding("L", "qrz_lookup_selected", "Lookup", show=False),
         Binding("b", "qrz_backfill", "Backfill All"),
+        Binding("B", "qrz_backfill", "Backfill All", show=False),
         Binding("s", "p2p_spot_selected", "P2P Spot"),
+        Binding("S", "p2p_spot_selected", "P2P Spot", show=False),
     ]
 
     CSS_PATH = "logger.tcss"
