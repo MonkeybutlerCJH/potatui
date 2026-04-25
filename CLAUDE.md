@@ -112,7 +112,7 @@ potatui/
     logger_modals.py  All modal dialogs used by the logger: ModePickerModal,
                    EditQSOModal, SessionSummaryModal, ConfirmModal, QrzLogModal,
                    FlrigStatusModal, SelfSpotModal, SetFreqModal,
-                   ChangeOperatorModal, WawaModal, SolarWeatherModal
+                   ChangeOperatorModal, WawaModal, SolarWeatherModal, P2pSpotModal
     spots.py       Live POTA spots browser
     commander.py   CommanderModal — fire and configure CAT/console/CW command slots (F7)
                    Module-level helpers: `_apply_cut(rst)` (9→N cut numbers, first digit preserved),
@@ -206,6 +206,7 @@ Fields: Callsign, Park Ref(s), Grid Square, Power (W), Rig, Antenna, Your State 
 | D        | Delete QSO (table mode)                   |
 | L        | QRZ lookup selected QSO (table mode)      |
 | B        | QRZ backfill all QSOs (table mode)        |
+| S        | P2P Spot selected QSO (table mode)        |
 | Escape   | Clear entry form, return focus to callsign |
 
 **Reserved keys**: whenever a new `LoggerScreen` binding is added, also add the key to `RESERVED_KEYS` in `potatui/commands.py` so the F7 commander cannot assign it as a CAT/console shortcut.
@@ -384,7 +385,7 @@ The voice keyer has been replaced by the Commander — a three-tab modal for CAT
 - `_get_macro_context()` reads live form fields (callsign, RST sent, state) and session data (operator, park refs, station callsign).
 - `_cmd_config` loaded via `load_commands(legacy_vk)` in `__init__`.
 
-**RESERVED_KEYS** (`commands.py`): `f1`–`f10`, `ctrl+s`, `ctrl+n`, `ctrl+o`, `escape`, `enter`, `space`, `tab`, `backspace` — users cannot assign these as shortcuts. (`d`, `l`, `b` are table-mode-only and not reserved since Commander shortcuts only apply in entry-form mode.)
+**RESERVED_KEYS** (`commands.py`): `f1`–`f10`, `ctrl+s`, `ctrl+n`, `ctrl+o`, `escape`, `enter`, `space`, `tab`, `backspace` — users cannot assign these as shortcuts. (`d`, `l`, `b`, `s` are table-mode-only and not reserved since Commander shortcuts only apply in entry-form mode.)
 
 ## Settings Screen
 

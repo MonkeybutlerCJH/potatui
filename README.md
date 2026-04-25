@@ -17,6 +17,7 @@ A terminal user interface (TUI) for logging Parks on the Air (POTA) activations.
 - **Offline park database** — a local copy of the full POTA parks list is downloaded on first launch and refreshed every 30 days. Park lookups work even without internet. Toggle full offline mode with Ctrl+N.
 - **Solar/space weather indicator** — live NOAA Kp geomagnetic index shown in the header. Flashes red and fires a warning toast when any active space weather alert is issued. Click the pill to see the last 24h Kp history, a 3-day Kp forecast (colour-coded by severity), full alert text, and MUF/foF2 propagation prediction for your park's grid square (via [prop.kc2g.com](https://prop.kc2g.com/)). Polls every 10 minutes; skipped in offline mode.
 - **Rig mode translations** — every rig labels its modes differently (CW-U, CW-L, PKTUSB, USB-D…). The mode translation editor (Settings → flrig section) lets you map your rig's mode strings to Potatui's canonical modes in both directions. Click "Fetch from flrig" to auto-populate from the rig's own mode list.
+- **WSJT-X integration** — automatic QSO ingestion from WSJT-X via UDP. Logged FT8/FT4 QSOs appear in your session with full callsign lookup and ADIF export, no manual entry needed.
 - **Commander** — fire CAT commands, console commands, or CW macros via configurable slots with custom labels and keyboard shortcuts. Open the full panel with F7.
 - **Resume activations** — on launch, pick any previous session to continue from where you left off.
 - **ADIF export** — every QSO is appended to an ADIF file immediately. Full rewrite on edit, delete, or session end. Ready to upload to pota.app.
@@ -143,6 +144,10 @@ power_w  = 100
 [flrig]
 host = "localhost"
 port = 12345
+
+[wsjtx]
+host = "127.0.0.1"
+port = 2237
 
 [qrz]
 username = ""
@@ -466,6 +471,45 @@ Translations are stored at:
 | Windows  | `%APPDATA%\potatui\mode_translations.json` |
 
 If no translation file exists, built-in defaults are used as a fallback.
+
+---
+
+## WSJT-X Integration
+
+Potatui can automatically ingest QSOs logged by [WSJT-X](https://wsjtx.sourceforge.io/) (FT8, FT4, and other digital modes). No manual entry required.
+
+### How it works
+
+WSJT-X broadcasts QSO information over UDP when a contact is logged. Potatui listens for these datagrams and:
+
+- Creates a QSO in the current session with the callsign, frequency, mode, RST, grid, name, and comments from WSJT-X
+- Runs a QRZ/HamDB lookup (if online) to fill in name, state, grid, and distance
+- Appends the QSO to the ADIF file immediately
+- Updates the propagation profile with the contact distance
+- Shows a notification toast for each ingested QSO
+
+### Setup
+
+1. In **WSJT-X**, go to **Settings → Reporting → UDP Server** and enable all three checkboxes:
+   - **Accept UDP requests**
+   - **Notify on accepted UDP request**
+   - **Accepted UDP request restores window**
+2. Note the **UDP server port number** (default `2237`) and **outgoing interface** (default `127.0.0.1`).
+3. In Potatui, open **Settings (F8) → WSJT-X Integration** and set the host and port to match.
+
+The default WSJT-X config in Potatui matches the WSJT-X defaults, so no changes are needed unless you've customized your WSJT-X UDP settings.
+
+### Network status
+
+The WSJT-X connection status is visible by clicking the `net` pill in the logger header. The Network Status panel shows a dedicated WSJT-X row — click it to open the WSJT-X status log, which shows heartbeats, status messages, and any parse errors.
+
+### Testing
+
+A fake WSJT-X sender is included at `tools/fake_wsjtx.py`. Run it to send simulated QSO datagrams for testing:
+
+```bash
+.venv/bin/python tools/fake_wsjtx.py
+```
 
 ---
 
