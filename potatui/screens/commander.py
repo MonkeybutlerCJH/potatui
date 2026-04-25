@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 # CW cut number substitutions: digit → cut number character
 _CUT_MAP: dict[str, str] = {"9": "N"}
 
-_CW_VARIABLES = (
+_VARIABLES = (
     "{OP}       Your operator callsign\n"
     "{CALL}     Station callsign\n"
     "{PARK}     Active park reference(s)\n"
@@ -47,15 +47,15 @@ def _apply_cut(rst: str) -> str:
     return rst[0] + "".join(_CUT_MAP.get(c, c) for c in rst[1:])
 
 
-def resolve_cw_macros(text: str, context: dict[str, str]) -> str:
-    """Substitute {VARIABLE} placeholders in CW text using the provided context."""
+def resolve_macros(text: str, context: dict[str, str]) -> str:
+    """Substitute {VARIABLE} placeholders in command text using the provided context."""
     for key, val in context.items():
         text = text.replace(f"{{{key}}}", val)
     return text
 
 
 class CommanderModal(ModalScreen[None]):
-    """Two-tab modal for firing and configuring CAT and console command slots."""
+    """Modal for firing and configuring CAT, console, and CW command slots."""
 
     CSS = """
     CommanderModal { align: center middle; }
@@ -119,7 +119,7 @@ class CommanderModal(ModalScreen[None]):
         margin-top: 1;
     }
 
-    .cw-hint {
+    .hint-info {
         height: 9;
     }
 
@@ -154,12 +154,12 @@ class CommanderModal(ModalScreen[None]):
         self,
         cmd_config: CommandConfig,
         flrig: FlrigClient,
-        get_cw_context: Callable[[], dict[str, str]] | None = None,
+        get_context: Callable[[], dict[str, str]] | None = None,
     ) -> None:
         super().__init__()
         self._cmd_config = cmd_config
         self._flrig = flrig
-        self._get_cw_context = get_cw_context
+        self._get_context = get_context
         self._capture_state: tuple[str, int] | None = None  # ("cat"|"console"|"cw", 1–5)
         # Mirror shortcut values so edits are tracked separately from saved config
         self._shortcuts: dict[tuple[str, int], str] = {}
@@ -177,20 +177,20 @@ class CommanderModal(ModalScreen[None]):
                 with TabPane("CAT Commands", id="pane-cat"):
                     yield from self._compose_slots("cat", self._cmd_config.cat_slots)
                     yield Static(
-                        "Sent via flrig send_cat_string(). Check your rig manual for command codes.",
-                        classes="tab-hint",
+                        f"Sent via flrig send_cat_string(). Check your rig manual for command codes.\n\nVariables:\n{_VARIABLES}",
+                        classes="tab-hint hint-info",
                     )
                 with TabPane("Console Commands", id="pane-console"):
                     yield from self._compose_slots("console", self._cmd_config.console_slots)
                     yield Static(
-                        "Shell commands run in the background. You are responsible for cross-platform compatibility.",
-                        classes="tab-hint",
+                        f"Shell commands run in the background. You are responsible for cross-platform compatibility.\n\nVariables:\n{_VARIABLES}",
+                        classes="tab-hint hint-info",
                     )
                 with TabPane("CW Keyer", id="pane-cw"):
                     yield from self._compose_slots("cw", self._cmd_config.cw_slots)
                     yield Static(
-                        f"Sent via flrig cwio. Variables:\n{_CW_VARIABLES}",
-                        classes="tab-hint cw-hint",
+                        f"Sent via flrig cwio. Variables:\n{_VARIABLES}",
+                        classes="tab-hint hint-info",
                     )
             # Hidden focus sink — receives focus during key-capture mode so
             # key events aren't swallowed by Input widgets.
@@ -324,20 +324,21 @@ class CommanderModal(ModalScreen[None]):
             self._set_status(f"Slot {idx} has no command configured", error=True)
             return
         label = self._get_label(slot_type, idx) or f"{slot_type.upper()} {idx}"
+        # Resolve macros for all slot types
+        context = self._get_context() if self._get_context else {}
+        resolved = resolve_macros(cmd, context)
         if slot_type == "cat":
-            ok = self._flrig.send_cat_string(cmd)
+            ok = self._flrig.send_cat_string(resolved)
             if ok:
-                self._set_status(f"Fired: {label}  ({cmd})", error=False)
+                self._set_status(f"Fired: {label}  ({resolved})", error=False)
             else:
                 self._set_status("flrig not connected", error=True)
         elif slot_type == "cw":
-            context = self._get_cw_context() if self._get_cw_context else {}
-            resolved = resolve_cw_macros(cmd, context)
             self._set_status(f"Sending CW: {resolved}", error=False)
             self._run_cw(label, resolved)
         else:
             self._set_status(f"Running: {label}…", error=False)
-            self._run_console(label, cmd)
+            self._run_console(label, resolved)
 
     @work(thread=True)
     def _run_console(self, label: str, cmd: str) -> None:

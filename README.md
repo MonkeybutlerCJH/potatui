@@ -300,7 +300,7 @@ Set your frequency accurately with F2 before spotting.
 
 ## Commander (F7)
 
-Supports **CAT commands** (sent to the rig via flrig), **console commands** (run as shell commands), and **CW macros** (keyed via flrig's CW interface).
+Supports **CAT commands** (sent to the rig via flrig), **console commands** (run as shell commands), and **CW macros** (keyed via flrig's CW interface). All three tabs support dynamic variables substituted at send/run time.
 
 Each tab has 5 configurable slots. Each slot has a label, a command/text field, an optional keyboard shortcut, and a fire button. Shortcuts fire from anywhere on the logger screen — reserved logger keys cannot be assigned.
 
@@ -320,9 +320,9 @@ Commander configuration is stored separately from the main config file, at:
 | Yaesu FT-991A    | `PB01;` – `PB05;`   |
 | Other rigs       | Check your manual   |
 
-### CW Keyer tab
+### Macro variables
 
-CW macros are sent via flrig's `cwio_text` / `cwio_send` interface. The text field supports dynamic variables that are substituted at send time:
+Variables are available in all three tabs and are substituted when the command runs. They're most commonly used in CW macros (sent via flrig's `cwio_text` / `cwio_send` interface):
 
 | Variable      | Value                                          |
 |---------------|------------------------------------------------|

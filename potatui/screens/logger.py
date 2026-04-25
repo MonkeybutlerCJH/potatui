@@ -1630,18 +1630,23 @@ class LoggerScreen(Screen):
 
     @work(thread=True)
     def _fire_cat_slot(self, label: str, cmd: str) -> None:
-        ok = self.flrig.send_cat_string(cmd)
+        from potatui.screens.commander import resolve_macros
+        resolved = resolve_macros(cmd, self._get_macro_context())
+        ok = self.flrig.send_cat_string(resolved)
         if ok:
-            self.app.call_from_thread(self.notify, f"{label}  ({cmd})", severity="information")
+            self.app.call_from_thread(self.notify, f"{label}  ({resolved})", severity="information")
         else:
             self.app.call_from_thread(self.notify, "flrig not connected", severity="error")
 
     @work(thread=True)
     def _fire_console_slot(self, label: str, cmd: str) -> None:
         import subprocess
+
+        from potatui.screens.commander import resolve_macros
+        resolved = resolve_macros(cmd, self._get_macro_context())
         try:
             result = subprocess.run(  # noqa: S602
-                cmd, shell=True, capture_output=True, text=True, timeout=30
+                resolved, shell=True, capture_output=True, text=True, timeout=30
             )
             if result.returncode == 0:
                 self.app.call_from_thread(
@@ -1657,8 +1662,8 @@ class LoggerScreen(Screen):
         except Exception as e:
             self.app.call_from_thread(self.notify, f"Error: {e}", severity="error")
 
-    def _get_cw_context(self) -> dict[str, str]:
-        """Return current logger state for CW macro resolution."""
+    def _get_macro_context(self) -> dict[str, str]:
+        """Return current logger state for macro variable resolution."""
         from potatui.screens.commander import _apply_cut
         try:
             their_call = self.query_one("#f-callsign", Input).value.strip().upper()
@@ -1686,9 +1691,9 @@ class LoggerScreen(Screen):
 
     @work(thread=True)
     def _fire_cw_slot(self, label: str, macro_text: str) -> None:
-        from potatui.screens.commander import resolve_cw_macros
-        context = self._get_cw_context()
-        resolved = resolve_cw_macros(macro_text, context)
+        from potatui.screens.commander import resolve_macros
+        context = self._get_macro_context()
+        resolved = resolve_macros(macro_text, context)
         ok = self.flrig.send_cw(resolved)
         if ok:
             self.app.call_from_thread(
@@ -1699,7 +1704,7 @@ class LoggerScreen(Screen):
 
     def action_commander(self) -> None:
         from potatui.screens.commander import CommanderModal
-        self.app.push_screen(CommanderModal(self._cmd_config, self.flrig, self._get_cw_context))
+        self.app.push_screen(CommanderModal(self._cmd_config, self.flrig, self._get_macro_context))
 
     def action_settings(self) -> None:
         from potatui.screens.settings import SettingsScreen

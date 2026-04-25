@@ -116,8 +116,9 @@ potatui/
     spots.py       Live POTA spots browser
     commander.py   CommanderModal — fire and configure CAT/console/CW command slots (F7)
                    Module-level helpers: `_apply_cut(rst)` (9→N cut numbers, first digit preserved),
-                   `resolve_cw_macros(text, context)` (substitutes {VARIABLE} placeholders).
-                   Accepts optional `get_cw_context: Callable[[], dict[str, str]]` from LoggerScreen.
+                   `resolve_macros(text, context)` (substitutes {VARIABLE} placeholders).
+                   `_VARIABLES` str lists all available variables shown in the UI hint.
+                   Accepts optional `get_context: Callable[[], dict[str, str]]` from LoggerScreen.
     park_update.py ParkDbModal — download/refresh local park database prompt
     mode_translations.py  ModeTranslationsScreen — edit rig↔potatui mode maps (via Settings → flrig section)
                    Two sections: Inbound (rig mode → canonical, dynamic rows) and Outbound
@@ -366,19 +367,21 @@ The voice keyer has been replaced by the Commander — a three-tab modal for CAT
 - **Key capture**: clicking Set focuses a hidden `Button(id="capture-sink")` to absorb keypresses, then records the next key as the shortcut. Del/Backspace clears; Escape cancels.
 - Shortcuts validated against `RESERVED_KEYS` and checked for duplicates within the modal before saving.
 - **Save & Close** persists; **Close without saving** discards edits.
-- CW tab accepts optional `get_cw_context: Callable[[], dict[str, str]]` from LoggerScreen for live macro resolution.
+- Commander accepts optional `get_context: Callable[[], dict[str, str]]` from LoggerScreen for live macro resolution.
 
-**CW macros** — variables substituted at send time:
+**Macro variables** — available in all three tabs (CAT, Console, CW). Substituted at send/run time via `resolve_macros()`:
 - `{OP}` operator callsign, `{CALL}` station callsign, `{PARK}` active park ref(s)
 - `{THEIRCALL}` callsign field, `{RST}` RST sent field, `{RSTCUT}` RST with 9→N cut (first digit preserved), `{STATE}` state field
+- Variable list shown in UI via `_VARIABLES` string in `commander.py`.
+- **Adding a variable**: (1) add `{KEY}  description` to `_VARIABLES` in `commander.py`, (2) add `"KEY": value` to `_get_macro_context()` in `logger.py`.
 
 **flrig CW send** (`flrig.py`): `send_cw(text)` calls `rig.cwio_text(text)` then `rig.cwio_send(1)` via the CAT proxy (5s timeout). Sets `cat_in_flight = True` for the duration.
 
 **Logger shortcut dispatch** (`logger.py`):
 - `on_key` scans `_cmd_config.cat_slots`, `_cmd_config.console_slots`, and `_cmd_config.cw_slots` on every keypress.
 - Match → `_fire_cat_slot()`, `_fire_console_slot()`, or `_fire_cw_slot()` (all `@work(thread=True)`).
-- `_fire_cw_slot()` calls `_get_cw_context()` to resolve macros before sending.
-- `_get_cw_context()` reads live form fields (callsign, RST sent, state) and session data (operator, park refs, station callsign).
+- All three fire methods call `_get_macro_context()` and `resolve_macros()` before executing.
+- `_get_macro_context()` reads live form fields (callsign, RST sent, state) and session data (operator, park refs, station callsign).
 - `_cmd_config` loaded via `load_commands(legacy_vk)` in `__init__`.
 
 **RESERVED_KEYS** (`commands.py`): `f1`–`f10`, `ctrl+s`, `ctrl+n`, `ctrl+o`, `escape`, `enter`, `space`, `tab`, `backspace` — users cannot assign these as shortcuts. (`d`, `l`, `b` are table-mode-only and not reserved since Commander shortcuts only apply in entry-form mode.)
