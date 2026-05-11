@@ -1601,7 +1601,7 @@ class LoggerScreen(Screen):
     def action_self_spot(self) -> None:
         self.app.push_screen(
             SelfSpotModal(
-                callsign=self.session.operator,
+                callsign=self.session.station_callsign,
                 park_ref=self.session.active_park_ref,
                 freq_khz=self.freq_khz,
                 mode=self.mode,
