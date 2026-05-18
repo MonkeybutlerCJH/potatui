@@ -352,11 +352,11 @@ class SessionSummaryModal(ModalScreen[bool]):
         duration_str = f"{h:02d}:{m:02d}:{s:02d}"
         unique_calls = len({q.callsign for q in session.qsos})
         p2p_count = sum(1 for q in session.qsos if q.is_p2p)
-        elapsed_hours = elapsed_secs / 3600
-        if elapsed_hours < 1.0:
-            rate = int(total / elapsed_hours) if elapsed_hours > 0 and total > 0 else 0
+        elapsed_minutes = elapsed_secs / 60
+        if elapsed_minutes < 15.0:
+            rate = int(total / (elapsed_minutes / 15)) if elapsed_minutes > 0 and total > 0 else 0
         else:
-            cutoff = now - timedelta(hours=1)
+            cutoff = now - timedelta(minutes=15)
             rate = sum(1 for q in session.qsos if q.timestamp_utc >= cutoff)
 
         band_order = {name: i for i, (_, _, name) in enumerate(BAND_RANGES)}
@@ -392,7 +392,7 @@ class SessionSummaryModal(ModalScreen[bool]):
                     yield Static(duration_str, classes="stat-value")
                 with Vertical(classes="stat-col"):
                     yield Static("Rate", classes="stat-label")
-                    yield Static(f"{rate}/hr", classes="stat-value")
+                    yield Static(f"{rate}/15m", classes="stat-value")
                 if p2p_count:
                     with Vertical(classes="stat-col"):
                         yield Static("P2P", classes="stat-label")
@@ -1736,7 +1736,7 @@ class SolarWeatherModal(ModalScreen[None]):
 # About modal
 # ---------------------------------------------------------------------------
 
-_LAST_UPDATED = "2026-04-25"
+_LAST_UPDATED = "2026-05-18"
 
 _ABOUT_LOGO = [
     "██████╗  ██████╗ ████████╗ █████╗ ████████╗██╗   ██╗██╗",

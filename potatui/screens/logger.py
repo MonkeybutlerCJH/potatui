@@ -418,14 +418,14 @@ class LoggerScreen(Screen):
         today_count = sum(1 for q in self.session.qsos if q.timestamp_utc.date() == today)
         total_count = len(self.session.qsos)
         circle = "[green]●[/green]" if today_count >= 10 else "[red]●[/red]"
-        elapsed_hours = (now - self.session.start_time).total_seconds() / 3600
-        if elapsed_hours < 1.0:
+        elapsed_minutes = (now - self.session.start_time).total_seconds() / 60
+        if elapsed_minutes < 15.0:
             count = len(self.session.qsos)
-            rate = int(count / elapsed_hours) if elapsed_hours > 0 and count > 0 else 0
+            rate = int(count / (elapsed_minutes / 15)) if elapsed_minutes > 0 and count > 0 else 0
         else:
-            cutoff = now - timedelta(hours=1)
+            cutoff = now - timedelta(minutes=15)
             rate = sum(1 for q in self.session.qsos if q.timestamp_utc >= cutoff)
-        rate_str = f"{rate}/hr" if (rate > 0 or self.session.qsos) else "--/hr"
+        rate_str = f"{rate}/15m" if (rate > 0 or self.session.qsos) else "--/15m"
         if total_count != today_count:
             text = f"{circle} QSOs: {today_count} ({total_count} total)  {rate_str}"
         else:
