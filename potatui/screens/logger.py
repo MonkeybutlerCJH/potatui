@@ -972,6 +972,14 @@ class LoggerScreen(Screen):
         return True
 
     @on(Input.Submitted, "#f-callsign")
+    def on_callsign_submitted(self) -> None:
+        raw = self.query_one("#f-callsign", Input).value.strip()
+        freq_khz = self._is_frequency(raw)
+        if freq_khz is not None:
+            self._tune_to_frequency(freq_khz)
+            return
+        self._log_qso()
+
     @on(Input.Submitted, "#f-rst-sent")
     @on(Input.Submitted, "#f-rst-rcvd")
     @on(Input.Submitted, "#f-name")
@@ -1165,6 +1173,35 @@ class LoggerScreen(Screen):
         if len(cs) < 3:
             return False
         return any(c.isdigit() for c in cs) and sum(c.isalpha() for c in cs) >= 2
+
+    @staticmethod
+    def _is_frequency(text: str) -> float | None:
+        """Return frequency in kHz if *text* is a tuning request, else None.
+
+        A value is treated as a frequency when it contains no letters
+        (callsigns always have letters), no commas (multi-callsign mode),
+        parses as a float, and is at least 100 kHz.  If the text contains a
+        decimal point it is treated as MHz and multiplied by 1000; otherwise
+        it is treated as kHz directly.
+        """
+        text = text.strip()
+        if not text:
+            return None
+        if "," in text:
+            return None
+        if any(c.isalpha() for c in text):
+            return None
+        try:
+            val = float(text)
+        except ValueError:
+            return None
+        if "." in text:
+            freq_khz = val * 1000
+        else:
+            freq_khz = val
+        if freq_khz < 100:
+            return None
+        return freq_khz
 
     def format_dist_bearing(self, dist_km, brg) -> str:
         """Format distance and bearing into a human readable string"""
@@ -1472,28 +1509,28 @@ class LoggerScreen(Screen):
     def action_about(self) -> None:
         self.app.push_screen(AboutModal())
 
+    def _tune_to_frequency(self, freq_khz: float) -> None:
+        """Tune the radio to *freq_khz* and update all displays."""
+        self.freq_khz = freq_khz
+        band = freq_to_band(freq_khz)
+        if band != "?":
+            self.band = band
+        self._update_radio_display()
+        self._check_protected_frequencies()
+        freq_inp = self.query_one("#f-freq", Input)
+        freq_inp.value = f"{freq_khz:.1f}"
+        if self._flrig_online:
+            if self.mode == "SSB":
+                self.flrig.set_mode("SSB", freq_khz)
+            self.flrig.set_frequency(freq_khz * 1000)
+        self.query_one("#f-callsign", Input).value = ""
+        self.query_one("#f-callsign", Input).focus()
+
     def action_set_freq(self) -> None:
         def on_result(freq: float | None) -> None:
             if freq is None:
                 return
-            self.freq_khz = freq
-            band = freq_to_band(freq)
-            if band != "?":
-                self.band = band
-            self._update_radio_display()
-            self._check_protected_frequencies()
-            # Update the freq entry field
-            freq_inp = self.query_one("#f-freq", Input)
-            freq_inp.value = f"{freq:.1f}"
-            # Tune flrig if connected — set mode before frequency so any
-            # VFO drift caused by a USB↔LSB switch is corrected by the
-            # subsequent set_frequency call (avoids ~1.4 kHz offset on
-            # cross-band changes).
-            if self._flrig_online:
-                if self.mode == "SSB":
-                    self.flrig.set_mode("SSB", freq)
-                self.flrig.set_frequency(freq * 1000)
-            self.query_one("#f-callsign", Input).focus()
+            self._tune_to_frequency(freq)
 
         self.app.push_screen(SetFreqModal(self.freq_khz), on_result)
 

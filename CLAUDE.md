@@ -275,9 +275,11 @@ Opening the `SolarWeatherModal` sets `_solar_alerts_acknowledged = True` and sto
 
 The pill flashes for **any** active alerts (not just storm-level Kp).
 
-## Set Run Frequency (F2)
+## Set Run Frequency (F2 / Callsign Field Shortcut)
 
 `SetFreqModal` pre-fills with `self.freq_khz`. On confirm: updates `self.freq_khz`, `self.band`, calls `_update_radio_display()`, sets `#f-freq` input value, calls `flrig.set_frequency(freq * 1000)` if online.
+
+**Callsign-field shortcut**: typing a frequency (e.g. `14225` or `14.225`) into the callsign field and pressing Enter tunes the radio directly — no modal needed. `_is_frequency()` detects pure-numeric strings (no letters, no commas, ≥100 kHz); decimal-point values are treated as MHz, others as kHz. `_tune_to_frequency()` is the shared tuning method used by both F2 and the shortcut.
 
 ## Callsign Lookup (QRZ + HamDB fallback)
 

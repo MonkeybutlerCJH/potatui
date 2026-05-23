@@ -263,6 +263,8 @@ Plus any custom shortcuts you've assigned to Commander slots.
 
 Press **F2** to open the Set Run Frequency dialog. Type the new frequency in kHz and press Enter. The header, entry form, and flrig (if connected) all update immediately.
 
+For a faster shortcut, type the frequency directly into the **Callsign** field and press **Enter** — e.g. `14225` (kHz) or `14.225` (MHz). The radio tunes immediately, no dialog needed. This mirrors the N1MM Logger behavior.
+
 ### Editing QSOs
 
 Press **F4** to move focus into the QSO log table. Use arrow keys to select any QSO, then press **Enter** to open the edit dialog. Press **Enter** in any field or click **Save** to save changes. Press **F4** or **Escape** to return to the entry form.
