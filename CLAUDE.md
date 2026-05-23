@@ -101,6 +101,9 @@ potatui/
                      empirical (≥10 QSOs on band) takes priority; falls back to
                      theoretical skip-zone calculation using fof2 from MUF data.
   park_db.py       ParkDb singleton — offline CSV park database, search_parks()
+  protected_frequencies.py  Protected frequency overlap detection — loads user-editable
+                   JSON from config dir, merged atop built-in defaults; pure check_overlap()
+                   function accounts for USB vs LSB passband direction.
   wawa.py          Easter egg — nearest Wawa via Overpass API (brand="Wawa" filter);
                    Nominatim reverse-geocode fallback for nodes missing address tags;
                    session-level result cache; respects offline_mode flag

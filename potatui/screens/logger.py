@@ -30,6 +30,7 @@ from potatui.config import Config
 from potatui.flrig import FlrigClient
 from potatui.mode_map import load_translations
 from potatui.propagation import PropProfile
+from potatui.protected_frequencies import ProtectedFrequency, check_overlap, load_protected
 from potatui.screens.logger_modals import (
     AboutModal,
     ChangeOperatorModal,
@@ -173,6 +174,8 @@ class LoggerScreen(Screen):
         self._clock_tick_count: int = 0
         self._log_paths = self._make_log_paths()
         self._json_path = self._make_json_path()
+        self._protected_entries: list[ProtectedFrequency] = load_protected()
+        self._last_overlapping_labels: frozenset[str] = frozenset()
 
     def _make_log_paths(self):
         return [
@@ -227,6 +230,7 @@ class LoggerScreen(Screen):
                 with Vertical(classes="form-field", id="freq-field"):
                     yield Label("Freq (kHz)", classes="form-label")
                     yield Input(value=f"{self.freq_khz:.1f}", id="f-freq", max_length=10)
+                    yield Static("", id="prot-warning")
                 with Vertical(classes="form-field"):
                     yield Label(" ", classes="form-label")
                     yield Button("Log [Enter]", variant="primary", id="btn-log")
@@ -364,6 +368,32 @@ class LoggerScreen(Screen):
         else:
             radio_str = f"---  {self.band}  {self.mode}"
         self.query_one("#hdr-radio", Static).update(radio_str)
+
+    def _check_protected_frequencies(self) -> None:
+        """Check for passband overlap with protected frequencies.
+
+        Debounces: only notifies when the set of overlapping entries
+        actually changes, not on every poll cycle.
+        """
+        overlapping = check_overlap(self.freq_khz, self.mode, self._protected_entries)
+        new_labels = frozenset(e.label for e in overlapping)
+
+        if new_labels == self._last_overlapping_labels:
+            return
+        self._last_overlapping_labels = new_labels
+
+        widget = self.query_one("#prot-warning", Static)
+
+        if overlapping:
+            names = ", ".join(e.label for e in overlapping)
+            self.notify(
+                f"Protected frequency: {names}",
+                severity="warning",
+                timeout=8,
+            )
+            widget.update(f"⚠ {names}")
+        else:
+            widget.update("")
 
 
     def _update_shift_indicator(self) -> None:
@@ -603,6 +633,7 @@ class LoggerScreen(Screen):
             self._flrig_online_prev = effective_online
 
         self._update_radio_display()
+        self._check_protected_frequencies()
 
     def _update_qrz_indicator(self) -> None:
         pass  # QRZ status now shown in NetworkStatusModal only
@@ -1275,6 +1306,7 @@ class LoggerScreen(Screen):
             if band != "?":
                 self.band = band
             self._update_radio_display()
+            self._check_protected_frequencies()
         except ValueError:
             pass  # incomplete input — ignore
 
@@ -1449,6 +1481,7 @@ class LoggerScreen(Screen):
             if band != "?":
                 self.band = band
             self._update_radio_display()
+            self._check_protected_frequencies()
             # Update the freq entry field
             freq_inp = self.query_one("#f-freq", Input)
             freq_inp.value = f"{freq:.1f}"
@@ -1481,6 +1514,7 @@ class LoggerScreen(Screen):
             if mode:
                 self.mode = mode
                 self._update_radio_display()
+                self._check_protected_frequencies()
                 # Update RST defaults
                 self.query_one("#f-rst-sent", Input).value = _rst_default(mode)
                 self.query_one("#f-rst-rcvd", Input).value = _rst_default(mode)
@@ -1712,6 +1746,9 @@ class LoggerScreen(Screen):
         def _on_settings_closed(_: object) -> None:
             """Sync offline flags and reload mode translations after settings close."""
             self.flrig.update_translations(load_translations())
+            self._protected_entries = load_protected()
+            self._last_overlapping_labels = frozenset()
+            self._check_protected_frequencies()
             new_offline = self.config.offline_mode
             if new_offline == self._offline_manual:
                 return
@@ -1869,6 +1906,7 @@ class LoggerScreen(Screen):
             self.query_one("#f-rst-sent", Input).value = _rst_default(mode)
             self.query_one("#f-rst-rcvd", Input).value = _rst_default(mode)
             self._update_radio_display()
+            self._check_protected_frequencies()
         except Exception:
             pass
 

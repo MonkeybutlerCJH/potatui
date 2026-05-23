@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "entries": [
+    { "frequency_khz": 1890.0, "label": "SSTV Call (160m)", "mode": "LSB" },
+    { "frequency_khz": 3730.0, "label": "SSTV Call (80m Europe)", "mode": "LSB" },
+    { "frequency_khz": 3733.0, "label": "DIGITAL SSTV Call (80m Europe)", "mode": "LSB" },
+    { "frequency_khz": 3845.0, "label": "SSTV Call (80m)", "mode": "LSB" },
+    { "frequency_khz": 7033.0, "label": "SSTV Call 7.033 (40m)", "mode": "LSB" },
+    { "frequency_khz": 7040.0, "label": "SSTV Call (40m Europe)", "mode": "LSB" },
+    { "frequency_khz": 7171.0, "label": "SSTV Call 7.171 (40m)", "mode": "LSB" },
+    { "frequency_khz": 7200.0, "label": "'Lid' frequency (40m)", "mode": "LSB" },
+    { "frequency_khz": 14230.0, "label": "SSTV Call 14.230 (20m)", "mode": "USB" },
+    { "frequency_khz": 14233.0, "label": "SSTV Call 14.233 (20m)", "mode": "USB" },
+    { "frequency_khz": 14240.0, "label": "SSTV Call (20m Europe)", "mode": "USB" },
+    { "frequency_khz": 14300.0, "label": "Maritime Mobile Service Net", "mode": "USB", "bandwidth_khz": 6.0 },
+    { "frequency_khz": 14313.0, "label": "'Lid' frequency (20m)", "mode": "USB" },
+    { "frequency_khz": 21340.0, "label": "SSTV Call (15m)", "mode": "USB" },
+    { "frequency_khz": 28680.0, "label": "SSTV Call (10m)", "mode": "USB" }
+  ]
+}

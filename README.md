@@ -14,6 +14,7 @@ A terminal user interface (TUI) for logging Parks on the Air (POTA) activations.
 - **Callsign lookup** — name, location, distance, and direction from your park shown automatically as you type a callsign. First name and state auto-fill. Backfill (`B` in table mode) fills in missing names/states for all QSOs in a session. Uses QRZ XML if configured; falls back to HamDB.org (no account required) automatically.
 - **POTA spots browser** — live spot list with band/mode/sort/search filters, auto-refreshes every 60 seconds. QSY directly to a spot with one keypress (tunes flrig, pre-fills callsign and P2P park). Distance from your park shown per spot. Worked activators shown in green.
 - **Self-spotting** — post yourself to the POTA network from within the app. Your most recent spot is displayed live on the logging screen, showing who spotted you, how long ago, and any comments — colour-coded green/yellow/grey by age.
+- **Protected frequency warnings** — warns when your TX passband overlaps known protected frequencies (SSTV calling, maritime nets, etc.). Accounts for USB vs LSB passband direction. Shows a warning below the frequency field and a notification toast. The frequency list is a user-editable JSON file.
 - **Offline park database** — a local copy of the full POTA parks list is downloaded on first launch and refreshed every 30 days. Park lookups work even without internet. Toggle full offline mode with Ctrl+N.
 - **Solar/space weather indicator** — live NOAA Kp geomagnetic index shown in the header. Flashes red and fires a warning toast when any active space weather alert is issued. Click the pill to see the last 24h Kp history, a 3-day Kp forecast (colour-coded by severity), full alert text, and MUF/foF2 propagation prediction for your park's grid square (via [prop.kc2g.com](https://prop.kc2g.com/)). Polls every 10 minutes; skipped in offline mode.
 - **Rig mode translations** — every rig labels its modes differently (CW-U, CW-L, PKTUSB, USB-D…). The mode translation editor (Settings → flrig section) lets you map your rig's mode strings to Potatui's canonical modes in both directions. Click "Fetch from flrig" to auto-populate from the rig's own mode list.
@@ -206,7 +207,7 @@ The entry form has two rows. Row 1 holds the fields you fill in for every QSO; r
 | RST Sent   | Pre-filled with `5` — type the signal digits (e.g. `9` → `59`).                   |
 | RST Rcvd   | Same.                                                                              |
 | P2P Park   | Pre-filled with the configured prefix (default `US-`). Type digits. Live park name, distance, and bearing. Auto-fills State. |
-| Freq (kHz) | Pre-filled from flrig or last known. Edit to override. Band updates automatically. |
+| Freq (kHz) | Pre-filled from flrig or last known. Edit to override. Band updates automatically. Shows a warning below the field if your passband overlaps a protected frequency. |
 
 **Row 2 (optional):**
 

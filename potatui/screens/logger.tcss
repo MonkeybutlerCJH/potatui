@@ -111,6 +111,12 @@ LoggerScreen {
     height: 1;
 }
 
+#prot-warning {
+    color: $warning;
+    text-style: bold;
+    height: 1;
+}
+
 #freq-field {
     width: 14;
 }
