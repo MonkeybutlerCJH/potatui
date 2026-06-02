@@ -29,6 +29,8 @@ from potatui.adif import freq_to_band
 from potatui.park_db import park_db
 from potatui.session import QSO, Session
 from potatui.space_weather import SpaceWeatherData, fetch_muf
+from potatui.weather import WeatherData as TerrWeatherData
+from potatui.weather import _weather_emoji
 
 MODES = ["SSB", "CW", "AM", "FM", "FT8", "FT4"]
 
@@ -1733,10 +1735,210 @@ class SolarWeatherModal(ModalScreen[None]):
 
 
 # ---------------------------------------------------------------------------
+# Terrestrial Weather Modal
+# ---------------------------------------------------------------------------
+
+
+class WeatherModal(ModalScreen[None]):
+    """Weather detail: current conditions, forecast, and active alerts."""
+
+    CSS = """
+    WeatherModal {
+        align: center middle;
+    }
+    #weather-box {
+        width: 90;
+        height: auto;
+        max-height: 62;
+        border: solid $primary;
+        background: $surface;
+        padding: 1 2;
+    }
+    #weather-title {
+        text-align: center;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    #weather-current {
+        height: auto;
+        padding: 0 2;
+        background: $panel;
+        border: tall $primary;
+        margin-bottom: 0;
+        align: center middle;
+    }
+    #weather-current Static {
+        width: auto;
+        height: 1;
+    }
+    .weather-lbl {
+        color: $text-muted;
+    }
+    .weather-val {
+        text-style: bold;
+    }
+    .weather-sep {
+        color: $text-muted;
+    }
+    #weather-forecast-label {
+        text-style: bold;
+        color: $text-muted;
+        margin-top: 1;
+        margin-bottom: 0;
+    }
+    #weather-forecast-table {
+        height: 12;
+        margin-bottom: 0;
+    }
+    #weather-alerts-label {
+        text-style: bold;
+        color: $text-muted;
+        margin-top: 1;
+        margin-bottom: 0;
+    }
+    #weather-alerts-scroll {
+        height: auto;
+        max-height: 18;
+    }
+    .weather-alert {
+        margin-bottom: 1;
+    }
+    .weather-alert-severe {
+        color: $error;
+        text-style: bold;
+    }
+    .weather-alert-extreme {
+        color: $error;
+        text-style: bold;
+        background: $surface-darken-1;
+    }
+    .weather-alert-headline {
+        text-style: bold;
+    }
+    #weather-btn-row {
+        height: auto;
+        align: right middle;
+        margin-top: 1;
+    }
+    .weather-muted {
+        color: $text-muted;
+        text-style: italic;
+    }
+    .weather-location {
+        color: $text-muted;
+        text-style: italic;
+        text-align: center;
+    }
+    """
+
+    def __init__(self, data: TerrWeatherData) -> None:
+        super().__init__()
+        self._data = data
+
+    def compose(self) -> ComposeResult:
+        data = self._data
+
+        with VerticalScroll(id="weather-box"):
+            yield Static("Weather", id="weather-title")
+
+            # Current conditions
+            with Horizontal(id="weather-current"):
+                obs = data.observation
+                if obs:
+                    # Temperature
+                    if obs.temperature_f is not None:
+                        color = "yellow" if obs.temperature_f > 90 else \
+                                "cyan" if obs.temperature_f < 32 else "white"
+                        yield Static(f"[{color}]{obs.temperature_f:.0f}°[/{color}]", classes="weather-val")
+                    else:
+                        yield Static("[dim]?°[/dim]", classes="weather-val")
+                    yield Static("  ", classes="weather-sep")
+                    # Conditions emoji
+                    emoji = _weather_emoji(obs.conditions) if obs.conditions else "🌡️"
+                    yield Static(emoji, classes="weather-val")
+                    yield Static("  ·  ", classes="weather-sep")
+                    # Humidity
+                    yield Static("Humidity ", classes="weather-lbl")
+                    hum = f"{obs.humidity:.0f}%" if obs.humidity is not None else "[dim]--[/dim]"
+                    yield Static(hum, classes="weather-val")
+                    yield Static("  ·  ", classes="weather-sep")
+                    # Wind
+                    yield Static("Wind ", classes="weather-lbl")
+                    if obs.wind_speed_mph is not None and obs.wind_direction:
+                        wind = f"{obs.wind_direction} {obs.wind_speed_mph:.0f} mph"
+                    elif obs.wind_speed_mph is not None:
+                        wind = f"{obs.wind_speed_mph:.0f} mph"
+                    else:
+                        wind = "[dim]calm[/dim]"
+                    yield Static(wind, classes="weather-val")
+                else:
+                    yield Static("[dim]Current conditions unavailable[/dim]", classes="weather-muted")
+
+            # Location name
+            if data.location_name:
+                yield Static(data.location_name, classes="weather-location")
+
+            # Forecast
+            yield Static("Forecast", id="weather-forecast-label")
+            yield DataTable(id="weather-forecast-table", show_cursor=False, zebra_stripes=True)
+
+            # Alerts
+            with Vertical(id="weather-alerts-scroll"):
+                yield Static("Active Alerts", id="weather-alerts-label")
+                if data.alerts:
+                    for alert in data.alerts:
+                        sev_class = "weather-alert-extreme" if alert.severity == "Extreme" else \
+                                   "weather-alert-severe" if alert.severity == "Severe" else \
+                                   ""
+                        effective_short = alert.effective[:16] if alert.effective else "?"
+                        expires_short = alert.expires[:16] if alert.expires else "?"
+                        yield Static(
+                            f"[bold]{alert.event}[/bold]\n"
+                            f"[dim]{alert.severity} · Effective: {effective_short}"
+                            f" · Expires: {expires_short}[/dim]\n"
+                            f"{alert.headline}",
+                            classes=f"weather-alert {sev_class}",
+                        )
+                else:
+                    yield Static("No active weather alerts.", classes="weather-muted")
+
+            with Horizontal(id="weather-btn-row"):
+                yield Button("Close", variant="primary", id="weather-close")
+
+    def on_mount(self) -> None:
+        data = self._data
+
+        # Populate forecast DataTable
+        table = self.query_one("#weather-forecast-table", DataTable)
+        table.add_column("Day", key="day")
+        table.add_column("Conditions", key="conditions")
+        table.add_column("Temp", key="temp")
+        table.add_column("Wind", key="wind")
+
+        for period in data.forecast[:14]:
+            emoji = _weather_emoji(period.short_forecast) if period.short_forecast else "🌡️"
+            temp_str = f"{period.temperature}°{period.temperature_unit}"
+            table.add_row(
+                period.name,
+                f"{emoji} {period.short_forecast}",
+                temp_str,
+                period.wind_speed,
+            )
+
+    @on(Button.Pressed, "#weather-close")
+    def on_close(self) -> None:
+        self.dismiss(None)
+
+    def on_key(self, event) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+
+
+# ---------------------------------------------------------------------------
 # About modal
 # ---------------------------------------------------------------------------
 
-_LAST_UPDATED = "2026-05-23"
+_LAST_UPDATED = "2026-06-02"
 
 _ABOUT_LOGO = [
     "██████╗  ██████╗ ████████╗ █████╗ ████████╗██╗   ██╗██╗",

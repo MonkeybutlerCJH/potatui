@@ -32,7 +32,7 @@ LoggerScreen {
     color: $warning;
 }
 
-#hdr-net, #hdr-solar {
+#hdr-net, #hdr-solar, #hdr-weather {
     width: auto;
     padding: 0 1;
     color: $background;
@@ -63,6 +63,14 @@ LoggerScreen {
 #hdr-solar.solar-unknown { background: $panel; color: $text-muted; }
 #hdr-solar.solar-flash-a { background: $error; color: $background; }
 #hdr-solar.solar-flash-b { background: $surface; color: $error; }
+
+#hdr-weather.weather-normal { background: $success; }
+#hdr-weather.weather-advisory { background: $warning; color: $background; }
+#hdr-weather.weather-severe { background: $error; color: $background; }
+#hdr-weather.weather-extreme { background: $error; color: $background; }
+#hdr-weather.weather-unknown { background: $panel; color: $text-muted; }
+#hdr-weather.weather-flash-a { background: $error; color: $background; }
+#hdr-weather.weather-flash-b { background: $surface; color: $error; }
 
 #hdr-shift {
     width: auto;

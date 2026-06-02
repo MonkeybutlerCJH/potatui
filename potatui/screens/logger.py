@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import typing
 from datetime import UTC, datetime, timedelta
 
 from textual import events, on, work
@@ -45,6 +46,7 @@ from potatui.screens.logger_modals import (
     SetFreqModal,
     SolarWeatherModal,
     WawaModal,
+    WeatherModal,
     _rst_default,
 )
 from potatui.session import QSO, Session
@@ -54,6 +56,13 @@ from potatui.space_weather import (
     fetch_space_weather,
     kp_severity,
     kp_traditional,
+)
+from potatui.weather import (
+    WeatherData as TerrWeatherData,
+)
+from potatui.weather import (
+    _weather_emoji,
+    fetch_weather,
 )
 from potatui.wsjtx import WsjtxClient
 
@@ -168,6 +177,12 @@ class LoggerScreen(Screen):
         self._solar_alerts_acknowledged: bool = False
         self._solar_flash_timer: Timer | None = None
         self._solar_flash_toggle_state: bool = False
+        self._weather_data: TerrWeatherData | None = None
+        self._weather_alert_keys: set[str] = set()
+        self._weather_initial_poll_done: bool = False
+        self._weather_alerts_acknowledged: bool = False
+        self._weather_flash_timer: Timer | None = None
+        self._weather_flash_toggle_state: bool = False
         self._offline: bool = config.offline_mode  # True = skip all internet calls
         self._offline_manual: bool = config.offline_mode  # True = user explicitly set offline
         self._current_utc_date = datetime.utcnow().date()
@@ -205,6 +220,8 @@ class LoggerScreen(Screen):
             yield Static("net", id="hdr-net", classes="net-unknown")
             yield Static("|", classes="hdr-sep")
             yield Static("K:?", id="hdr-solar", classes="solar-unknown")
+            yield Static("|", classes="hdr-sep")
+            yield Static("W:?", id="hdr-weather", classes="weather-unknown")
             yield Static("|", id="hdr-shift-sep", classes="hdr-sep shift-inactive")
             yield Static("", id="hdr-shift", classes="shift-inactive")
 
@@ -273,6 +290,7 @@ class LoggerScreen(Screen):
         self.set_interval(30.0, self._check_internet_connectivity)
         self.set_interval(60.0, self._poll_spots_for_self)
         self.set_interval(600.0, self._poll_space_weather)
+        self.set_interval(600.0, self._poll_weather)
         if self._offline_manual:
             net_widget = self.query_one("#hdr-net", Static)
             net_widget.update("OFFL")
@@ -283,6 +301,7 @@ class LoggerScreen(Screen):
         self._poll_spots_for_self()
         self._update_qrz_indicator()
         self._poll_space_weather()
+        self._poll_weather()
         self.query_one("#f-callsign", Input).focus()
 
     @work
@@ -336,6 +355,7 @@ class LoggerScreen(Screen):
         # may have already fired before _park_latlon was resolved)
         if self._park_latlon is not None and not self._offline:
             self._poll_space_weather()
+            self._poll_weather()
 
     def _setup_table(self) -> None:
         table = self.query_one("#qso-table", DataTable)
@@ -893,8 +913,131 @@ class LoggerScreen(Screen):
         self._stop_solar_flash()
         self.app.push_screen(SolarWeatherModal(self._solar_data, park_latlon=self._park_latlon, park_grid=self._park_grid))
 
+    # -----------------------------------------------------------------------
+    # Terrestrial weather
+    # -----------------------------------------------------------------------
+
+    @work(exclusive=True, group="weather")
+    async def _poll_weather(self) -> None:
+        if self._offline:
+            return
+        if self._park_latlon is None:
+            return
+        lat, lon = self._park_latlon
+        data = await fetch_weather(lat, lon)
+        self._weather_data = data
+        self._update_weather_indicator()
+        self._check_weather_alerts(data)
+
+    def _update_weather_indicator(self) -> None:
+        try:
+            widget = self.query_one("#hdr-weather", Static)
+        except Exception:
+            return
+        data = self._weather_data
+        if data is None or data.fetch_error or data.observation is None:
+            if self._weather_flash_timer is None:
+                widget.update("W:?")
+                widget.set_classes("weather-unknown")
+            return
+        obs = data.observation
+        temp = obs.temperature_f
+        emoji = _weather_emoji(obs.conditions) if obs.conditions else "🌡️"
+        if temp is not None:
+            widget.update(f"{temp:.0f}° {emoji}")
+        else:
+            widget.update(f"?° {emoji}")
+
+        # Determine highest severity alert
+        max_sev = "normal"
+        for alert in data.alerts:
+            sev = alert.severity
+            if sev == "Extreme":
+                max_sev = "extreme"
+                break
+            if sev == "Severe" and max_sev not in ("extreme",):
+                max_sev = "severe"
+            if sev == "Moderate" and max_sev not in ("extreme", "severe"):
+                max_sev = "advisory"
+
+        has_toastable = any(a.severity in ("Extreme", "Severe") for a in data.alerts)
+        if has_toastable and not self._weather_alerts_acknowledged:
+            self._start_weather_flash()
+        else:
+            self._stop_weather_flash()
+            widget.set_classes(f"weather-{max_sev}")
+
+    def _check_weather_alerts(self, data: TerrWeatherData) -> None:
+        current_keys = {a.alert_key for a in data.alerts}
+        new_keys = current_keys - self._weather_alert_keys
+        self._weather_alert_keys |= current_keys
+
+        if not self._weather_initial_poll_done:
+            self._weather_initial_poll_done = True
+            return
+
+        if new_keys:
+            self._weather_alerts_acknowledged = False
+
+        for alert in data.alerts:
+            if alert.alert_key in new_keys and alert.severity in ("Extreme", "Severe"):
+                title = f"⚠️ Weather: {alert.event}"
+                msg = alert.headline or alert.event
+                sev: typing.Literal["warning", "error"] = (
+                    "error" if alert.severity == "Extreme" else "warning"
+                )
+                self.notify(msg, title=title, severity=sev, timeout=10)
+
+    def _start_weather_flash(self) -> None:
+        if self._weather_flash_timer is not None:
+            return
+        self._weather_flash_timer = self.set_interval(0.5, self._weather_flash_toggle)
+
+    def _stop_weather_flash(self) -> None:
+        if self._weather_flash_timer is not None:
+            self._weather_flash_timer.stop()
+            self._weather_flash_timer = None
+        try:
+            widget = self.query_one("#hdr-weather", Static)
+            if self._weather_data and not self._weather_data.fetch_error and self._weather_data.observation:
+                max_sev = "normal"
+                for a in self._weather_data.alerts:
+                    if a.severity == "Extreme":
+                        max_sev = "extreme"
+                        break
+                    if a.severity == "Severe" and max_sev not in ("extreme",):
+                        max_sev = "severe"
+                    if a.severity == "Moderate" and max_sev not in ("extreme", "severe"):
+                        max_sev = "advisory"
+                widget.set_classes(f"weather-{max_sev}")
+            else:
+                widget.set_classes("weather-unknown")
+        except Exception:
+            pass
+
+    def _weather_flash_toggle(self) -> None:
+        try:
+            widget = self.query_one("#hdr-weather", Static)
+        except Exception:
+            return
+        self._weather_flash_toggle_state = not self._weather_flash_toggle_state
+        if self._weather_flash_toggle_state:
+            widget.set_classes("weather-extreme weather-flash-a")
+        else:
+            widget.set_classes("weather-extreme weather-flash-b")
+
+    @on(events.Click, "#hdr-weather")
+    def on_weather_indicator_click(self) -> None:
+        if self._weather_data is None:
+            self.notify("Weather data not yet loaded.")
+            return
+        self._weather_alerts_acknowledged = True
+        self._stop_weather_flash()
+        self.app.push_screen(WeatherModal(self._weather_data))
+
     def on_unmount(self) -> None:
         self._stop_solar_flash()
+        self._stop_weather_flash()
         self._wsjtx.stop()
 
     def _add_qso_row(self, qso: QSO, display_num: int) -> None:
@@ -1802,6 +1945,7 @@ class LoggerScreen(Screen):
                 self.notify("Offline mode OFF — network features re-enabled")
                 self._check_internet_connectivity()
                 self._poll_space_weather()
+                self._poll_weather()
 
         self.app.push_screen(SettingsScreen(self.config), _on_settings_closed)
 

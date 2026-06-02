@@ -94,6 +94,11 @@ potatui/
                    with "time_tag" and "Kp" keys (not the old array-of-arrays with header row).
                    10cm-flux.json is an array of dicts with a "flux" key (not a single
                    {"Flux": N} dict). Use these formats; do not revert to the old structure.
+  weather.py       NWS terrestrial weather — current conditions, forecast, alerts via api.weather.gov
+                   Free, no auth, requires User-Agent header. Non-US coordinates 404 gracefully.
+                   Module-level persistent AsyncClient via lazy `_client()` — uses shared ssl_ctx.
+                   In-memory cache with monotonic time TTL per data type.
+                   _weather_emoji(short_forecast) maps NWS forecast text to emoji.
   propagation.py   Propagation scoring for spot contact likelihood.
                    PropProfile dataclass — holds per-band QSO distances + fof2/MUF.
                    PropScore enum — HIGH / MEDIUM / LOW / UNKNOWN.
@@ -274,6 +279,31 @@ Also fetches MUF (via `fetch_muf(lat, lon)`, respecting its 15-min cache) when `
 Opening the `SolarWeatherModal` sets `_solar_alerts_acknowledged = True` and stops the flash. Subsequent polls only toast and reflash for genuinely new alerts (new `alert_key` values), which also clears `_solar_alerts_acknowledged`.
 
 The pill flashes for **any** active alerts (not just storm-level Kp).
+
+## Terrestrial Weather
+
+`_poll_weather()` runs on mount and every 10 minutes via `@work(exclusive=True, group="weather")`.
+Coordinates come from `_park_latlon` (same as MUF fetch); skipped if None or if offline.
+
+Feeds: NWS API (`api.weather.gov`) — free, no auth required, but requires a `User-Agent` header.
+Non-US coordinates return 404 gracefully (`fetch_weather()` never raises).
+
+The weather pill (`#hdr-weather`) shows current temperature + weather emoji (e.g. "72° ⛅").
+On the **first poll**, all current alert IDs are silently seeded into `_weather_alert_keys` — no toasts.
+The pill flashes if any **Extreme** or **Severe** severity alert is active and `_weather_alerts_acknowledged` is False.
+
+Toast notifications fire only for new alerts with severity **Extreme** (notify severity="error") or
+**Severe** (notify severity="warning"). Moderate/Minor alerts appear only in the modal.
+
+Opening the `WeatherModal` sets `_weather_alerts_acknowledged = True` and stops the flash.
+A second trigger fires at the end of `_fetch_park_location()` in case `_park_latlon` wasn't set
+yet during the on-mount poll. Also re-triggered when coming back online from Settings.
+
+`potatui/weather.py` — module-level persistent `httpx.AsyncClient` with shared `ssl_ctx`.
+Dataclasses: `WeatherObservation`, `WeatherForecastPeriod`, `WeatherAlert`, `WeatherData`.
+`_weather_emoji(short_forecast)` maps NWS forecast text to emoji for display.
+In-memory cache with monotonic time TTL per data type (points: 24h, forecast: 10min,
+observations: 10min, alerts: 5min).
 
 ## Set Run Frequency (F2 / Callsign Field Shortcut)
 
