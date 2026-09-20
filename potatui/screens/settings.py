@@ -302,6 +302,8 @@ class SettingsScreen(Screen):
             offline_mode=offline_mode,
             debug_logging=debug_logging,
             dupe_same_utc_date=dupe_same_utc_date,
+            # theme is changed via the command palette, not this screen — preserve it.
+            theme=self.config.theme,
             # vk1–vk5 preserved as-is; commands are now managed via the Commander (F7).
             vk1=self.config.vk1, vk2=self.config.vk2, vk3=self.config.vk3,
             vk4=self.config.vk4, vk5=self.config.vk5,
