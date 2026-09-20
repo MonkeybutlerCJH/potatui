@@ -296,6 +296,7 @@ Press **Ctrl+O** to open the operator change dialog. The new callsign is used fo
 - Press `p` to toggle the **Propagation** column, which scores each spot's contact likelihood based on your session's QSO distances and current ionospheric conditions (MUF/foF2): `●` green = HIGH, `◐` yellow = MEDIUM, `○` red = LOW, `·` = unknown.
 - Filter, sort, and search selections are remembered when you return to the screen.
 - Press `r` to manually refresh.
+- If the network drops or the app goes offline, the last successfully retrieved spots are shown and flagged as cached (with the time they were fetched) instead of an empty list.
 - Highlight a spot and press **Enter** to QSY: tunes flrig if connected, pre-fills the callsign and P2P park fields back on the logger screen.
 - Press `q` or **F5** to return to the logger.
 

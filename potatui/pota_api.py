@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -81,6 +82,28 @@ class Spot:
     grid: str = ""       # Maidenhead grid for distance calc
 
 
+@dataclass
+class SpotsCache:
+    """Last successfully fetched batch of spots, with the time it was fetched."""
+    spots: list[Spot]
+    cached_at: datetime  # UTC
+
+
+# Last successful fetch — reused by the spots screen when the network is down.
+# Session-scoped (process lifetime); cleared on restart.
+_spots_cache: SpotsCache | None = None
+
+
+def get_spots_cache() -> SpotsCache | None:
+    """Return the most recent successfully fetched spots, or None."""
+    return _spots_cache
+
+
+def _store_spots_cache(spots: list[Spot]) -> None:
+    global _spots_cache
+    _spots_cache = SpotsCache(spots=list(spots), cached_at=datetime.now(UTC))
+
+
 def is_valid_park_ref(ref: str) -> bool:
     return bool(PARK_REF_RE.match(ref.strip()))
 
@@ -143,8 +166,13 @@ async def lookup_park(ref: str, base_url: str) -> ParkInfo | None:
     return None
 
 
-async def fetch_spots(base_url: str) -> list[Spot]:
-    """Fetch current POTA activator spots."""
+async def fetch_spots(base_url: str) -> list[Spot] | None:
+    """Fetch current POTA activator spots.
+
+    Returns the parsed spot list on success (possibly empty), or ``None`` when
+    the request fails.  The last successful result is retained in
+    ``get_spots_cache()`` so the UI can show it when the network is down.
+    """
     url = f"{base_url.rstrip('/')}/spot/activator"
     _t0 = time.perf_counter()
     try:
@@ -175,11 +203,12 @@ async def fetch_spots(base_url: str) -> list[Spot]:
                 )
             except Exception:
                 continue
+        _store_spots_cache(spots)
         _log.debug("fetch_spots: %.0f ms, %d spots", (time.perf_counter() - _t0) * 1000, len(spots))
         return spots
     except Exception as exc:
         _log.debug("fetch_spots: failed in %.0f ms — %s", (time.perf_counter() - _t0) * 1000, exc)
-        return []
+        return None
 
 
 async def self_spot(

@@ -25,7 +25,7 @@ from textual.widgets import (
 
 from potatui.config import Config
 from potatui.flrig import FlrigClient
-from potatui.pota_api import Spot, fetch_spots
+from potatui.pota_api import Spot, fetch_spots, get_spots_cache
 from potatui.propagation import PropProfile, PropScore, score_spot
 from potatui.session import Session
 
@@ -193,6 +193,10 @@ class SpotsScreen(Screen):
         height: auto;
     }
 
+    #error-msg.stale {
+        color: $warning;
+    }
+
     DataTable {
         height: 1fr;
     }
@@ -306,15 +310,24 @@ class SpotsScreen(Screen):
     @work(exclusive=True)
     async def _do_refresh(self) -> None:
         error_widget = self.query_one("#error-msg", Static)
+        error_widget.remove_class("stale")
         error_widget.update("")
 
         if self._offline:
-            error_widget.update("Offline mode — live spots unavailable")
+            # No live fetch while offline, but we may still have the last batch.
+            self._show_cached_spots("Offline — live spots unavailable")
             return
 
         spots = await fetch_spots(self.config.pota_api_base)
+        if spots is None:
+            self._show_cached_spots("Could not reach the POTA API")
+            return
+
         if not spots:
-            error_widget.update("Could not fetch spots (API unavailable or no spots)")
+            self._spots = []
+            self._filtered = []
+            self._rebuild_table()
+            error_widget.update("No live spots right now")
             return
 
         self._spots = spots
@@ -323,6 +336,37 @@ class SpotsScreen(Screen):
 
         now_str = datetime.utcnow().strftime("%H:%Mz")
         self.query_one("#last-refresh", Static).update(f"Updated: {now_str}")
+
+    def _show_cached_spots(self, reason: str) -> None:
+        """Display the last successfully fetched spots, flagged as stale.
+
+        Used when the network is unavailable so the user still sees the most
+        recent data instead of an empty table.
+        """
+        error_widget = self.query_one("#error-msg", Static)
+        cache = get_spots_cache()
+        if cache is None or not cache.spots:
+            error_widget.remove_class("stale")
+            error_widget.update(f"{reason} — no cached spots available")
+            return
+
+        age_min = max(0, int((datetime.now(UTC) - cache.cached_at).total_seconds() // 60))
+        cached_str = cache.cached_at.astimezone(UTC).strftime("%H:%Mz")
+        if age_min < 1:
+            age_str = "just now"
+        elif age_min < 60:
+            age_str = f"{age_min}m ago"
+        else:
+            age_str = f"{age_min // 60}h {age_min % 60}m ago"
+
+        error_widget.add_class("stale")
+        error_widget.update(f"{reason} — showing cached spots from {cached_str} ({age_str})")
+
+        # Serve from cache without any network calls; distances fall back to
+        # each spot's own grid (and any park grids already prefetched).
+        self._spots = cache.spots
+        self._apply_filters()
+        self.query_one("#last-refresh", Static).update(f"Cached: {cached_str}")
 
     async def _prefetch_park_grids(self, spots: list[Spot]) -> None:
         """Populate _park_grid_cache for all unique spot park references.

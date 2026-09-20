@@ -74,6 +74,10 @@ potatui/
                    Parsed QSO dict keys: datetime_off, dx_call, dx_grid, tx_freq_hz, mode,
                    rst_sent, rst_rcvd, name, comments
   pota_api.py      async httpx: lookup_park(), fetch_spots(), self_spot()
+                   fetch_spots() returns list[Spot] on success (possibly empty) or None on
+                   failure; the last successful batch is kept in a process-level cache
+                   (get_spots_cache() → SpotsCache with .spots and .cached_at) so the
+                   spots screen can show it when the network is down.
                    fetch_location_pins() — fetches /locations, returns abbrev→(lat,lon), cached for process lifetime
                    ParkInfo has state field (2-letter abbrev) populated via _US_STATE_ABBREV
                    Spot has location (2-letter abbrev) and grid fields
@@ -373,9 +377,10 @@ After confirming a QSY from the spots screen, the logger screen receives:
 
 ## Spots Screen
 
-`SpotsScreen(config, flrig, park_latlon=None, session=None, prop_profile=None)` — park_latlon, session, and prop_profile passed from LoggerScreen.
+`SpotsScreen(config, flrig, park_latlon=None, session=None, offline=False, prop_profile=None)` — park_latlon, session, offline, and prop_profile passed from LoggerScreen.
 - Columns: Activator, Park, Park Name, Freq, Band, Mode, State, Dist, [Prop,] Age, Comments
 - Filter bar: Band select, Mode select, Sort select (Propagation / Distance / Age / Frequency)
+- **Offline/failed fetch**: `fetch_spots()` returns `None` on failure. When offline or the fetch fails, the screen shows the last successful batch from `get_spots_cache()` and flags it stale in `#error-msg` (amber `.stale` class) with the cache time and age. No network calls are made while serving cached spots. If no cache exists, the reason is shown plainly.
 - Distance computed via haversine from `park_latlon` to `spot.grid` (Maidenhead)
 - Sort by Propagation (HIGH → MEDIUM → LOW → UNKNOWN, then by distance), distance, age, or frequency
 - Filter/sort selections persist between visits via class-level `_saved_*` attributes including `_saved_prop_enabled`

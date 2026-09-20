@@ -535,6 +535,8 @@ class LoggerScreen(Screen):
             return
         from potatui.pota_api import fetch_spots
         spots = await fetch_spots(self.config.pota_api_base)
+        if not spots:
+            return
         my_call = self.session.operator.upper()
         my_spots = [s for s in spots if s.activator.upper() == my_call]
         if not my_spots:

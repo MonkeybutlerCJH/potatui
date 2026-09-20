@@ -320,3 +320,90 @@ class TestLoggerScreenRender:
                 assert screen.query_one("#f-freq", Input).value == "7074.0"
 
         _run_async(run())
+
+
+# ---------------------------------------------------------------------------
+# SpotsScreen — cached spots fall back
+# ---------------------------------------------------------------------------
+
+class TestSpotsScreenCache:
+    def _make_spot(self):
+        from potatui.pota_api import Spot
+        return Spot(
+            activator="W1AW",
+            reference="US-1234",
+            park_name="Test Park",
+            frequency=14225.0,
+            band="20m",
+            mode="SSB",
+            spotter="K1ABC",
+            spot_time="2026-04-05T12:00:00",
+            comments="",
+        )
+
+    def test_offline_shows_cached_spots_flagged_stale(self):
+        from datetime import UTC, datetime
+
+        from textual.app import App, ComposeResult
+        from textual.widgets import DataTable, Static
+
+        import potatui.pota_api as pota_api
+        from potatui.flrig import FlrigClient
+        from potatui.pota_api import SpotsCache
+        from potatui.screens.spots import SpotsScreen
+
+        # Seed the process-level cache as if a prior fetch had succeeded.
+        pota_api._spots_cache = SpotsCache(spots=[self._make_spot()], cached_at=datetime.now(UTC))
+
+        class _TestApp(App):
+            CSS = ""
+
+            def compose(self) -> ComposeResult:
+                yield Static("")
+
+            def on_mount(self) -> None:
+                self.push_screen(SpotsScreen(config=Config(), flrig=FlrigClient(), offline=True))
+
+        async def run():
+            try:
+                async with _TestApp().run_test(size=(160, 50)) as pilot:
+                    await pilot.pause(0.3)
+                    screen = pilot.app.screen
+                    table = screen.query_one("#spots-table", DataTable)
+                    assert table.row_count == 1
+                    error = screen.query_one("#error-msg", Static)
+                    assert "stale" in error.classes
+                    assert "cached" in str(error.content).lower()
+            finally:
+                pota_api._spots_cache = None
+
+        _run_async(run())
+
+    def test_offline_without_cache_shows_reason(self):
+        from textual.app import App, ComposeResult
+        from textual.widgets import Static
+
+        import potatui.pota_api as pota_api
+        from potatui.flrig import FlrigClient
+        from potatui.screens.spots import SpotsScreen
+
+        pota_api._spots_cache = None
+
+        class _TestApp(App):
+            CSS = ""
+
+            def compose(self) -> ComposeResult:
+                yield Static("")
+
+            def on_mount(self) -> None:
+                self.push_screen(SpotsScreen(config=Config(), flrig=FlrigClient(), offline=True))
+
+        async def run():
+            async with _TestApp().run_test(size=(160, 50)) as pilot:
+                await pilot.pause(0.3)
+                screen = pilot.app.screen
+                error = screen.query_one("#error-msg", Static)
+                assert "no cached spots" in str(error.content).lower()
+                assert "stale" not in error.classes
+
+        _run_async(run())

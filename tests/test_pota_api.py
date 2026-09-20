@@ -14,6 +14,7 @@ from potatui.pota_api import (
     Spot,
     fetch_location_pins,
     fetch_spots,
+    get_spots_cache,
     is_valid_park_ref,
     lookup_park,
     self_spot,
@@ -52,11 +53,14 @@ def reset_globals():
     """Reset module-level globals before each test."""
     orig_pins = pota_api_mod._location_pins
     orig_http = pota_api_mod._http
+    orig_cache = pota_api_mod._spots_cache
     pota_api_mod._location_pins = None
     pota_api_mod._http = None
+    pota_api_mod._spots_cache = None
     yield
     pota_api_mod._location_pins = orig_pins
     pota_api_mod._http = orig_http
+    pota_api_mod._spots_cache = orig_cache
 
 
 # ---------------------------------------------------------------------------
@@ -229,12 +233,12 @@ class TestFetchSpots:
         # Should get 2 valid spots, skip the malformed one
         assert len(spots) == 2
 
-    def test_returns_empty_list_on_http_error(self):
+    def test_returns_none_on_http_error(self):
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=OSError("Connection refused"))
         with patch("potatui.pota_api._http", mock_client):
             spots = _run(fetch_spots(_BASE))
-        assert spots == []
+        assert spots is None
 
     def test_band_derived_from_frequency(self):
         item = {**_SPOT_ITEM, "frequency": "14225"}
@@ -242,6 +246,43 @@ class TestFetchSpots:
         with patch("potatui.pota_api._http", mock_client):
             spots = _run(fetch_spots(_BASE))
         assert spots[0].band == "20m"
+
+
+class TestSpotsCache:
+    def test_successful_fetch_populates_cache(self):
+        mock_client = _mock_get([_SPOT_ITEM])
+        with patch("potatui.pota_api._http", mock_client):
+            _run(fetch_spots(_BASE))
+        cache = get_spots_cache()
+        assert cache is not None
+        assert len(cache.spots) == 1
+        assert cache.spots[0].activator == "W1AW"
+
+    def test_failed_fetch_preserves_previous_cache(self):
+        # First a good fetch...
+        good = _mock_get([_SPOT_ITEM])
+        with patch("potatui.pota_api._http", good):
+            _run(fetch_spots(_BASE))
+        # ...then the network drops.
+        bad = AsyncMock()
+        bad.get = AsyncMock(side_effect=OSError("Connection refused"))
+        with patch("potatui.pota_api._http", bad):
+            result = _run(fetch_spots(_BASE))
+        assert result is None
+        cache = get_spots_cache()
+        assert cache is not None
+        assert cache.spots[0].activator == "W1AW"
+
+    def test_empty_successful_fetch_updates_cache(self):
+        mock_client = _mock_get([])
+        with patch("potatui.pota_api._http", mock_client):
+            _run(fetch_spots(_BASE))
+        cache = get_spots_cache()
+        assert cache is not None
+        assert cache.spots == []
+
+    def test_cache_is_none_before_any_fetch(self):
+        assert get_spots_cache() is None
 
 
 # ---------------------------------------------------------------------------
