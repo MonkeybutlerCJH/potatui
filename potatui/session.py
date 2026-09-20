@@ -119,11 +119,33 @@ class Session:
                 return self.qsos[i]
         return None
 
-    def is_duplicate(self, callsign: str, band: str = "") -> bool:
+    def is_duplicate(
+        self,
+        callsign: str,
+        band: str = "",
+        same_utc_date: bool = False,
+        utc_now: datetime | None = None,
+    ) -> bool:
+        """Return True when ``callsign`` has already been worked.
+
+        A match on the same callsign (and, when ``band`` is given, the same
+        band) is a duplicate.  When ``same_utc_date`` is True, only QSOs logged
+        on the current UTC date count — a new UTC date is a new POTA activation
+        and contacts from a previous date are no longer duplicates.
+
+        ``utc_now`` overrides the reference time (used by tests).
+        """
         cs = callsign.upper()
-        if band:
-            return any(q.callsign == cs and q.band == band for q in self.qsos)
-        return any(q.callsign == cs for q in self.qsos)
+        today = (utc_now or datetime.utcnow()).date()
+        for q in self.qsos:
+            if q.callsign != cs:
+                continue
+            if band and q.band != band:
+                continue
+            if same_utc_date and q.timestamp_utc.date() != today:
+                continue
+            return True
+        return False
 
     def to_dict(self) -> dict:
         return {

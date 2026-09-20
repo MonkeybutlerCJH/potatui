@@ -153,6 +153,7 @@ Created automatically on first launch. Sectioned TOML format:
 `flrig_host`, `flrig_port`, `wsjtx_host` (default `"127.0.0.1"`), `wsjtx_port` (default `2237`),
 `pota_api_base`, `p2p_prefix` (default `"US-"`, used to pre-fill the P2P field),
 `theme`, `qrz_username`, `qrz_password`, `qrz_api_url`, `offline_mode` (bool),
+`debug_logging` (bool), `dupe_same_utc_date` (bool, default on — only flag duplicates logged on the current UTC date),
 `vk1`–`vk5` (legacy — kept only for migration into `commands.json` on first launch; not shown in Settings)
 
 ## Data Flow
@@ -182,7 +183,9 @@ Band is always derived from frequency via `freq_to_band(freq_khz)` in `adif.py`.
 
 ## Duplicate Detection
 
-`Session.is_duplicate(callsign, band)` — a contact is only a duplicate if the same callsign has been worked **on the same band**. Working the same station on a different band is not a duplicate. Duplicate shown as `"DUPE!"` label below the callsign field (only in single-callsign mode).
+`Session.is_duplicate(callsign, band, same_utc_date=False, utc_now=None)` — a contact is only a duplicate if the same callsign has been worked **on the same band**. Working the same station on a different band is not a duplicate.
+
+When `same_utc_date` is True, only QSOs logged on the current UTC date count as duplicates — a new UTC date is a new POTA activation. This is **on by default** via config `dupe_same_utc_date` (the `is_duplicate` keyword default stays `False`; the config drives the logger call). `utc_now` overrides the reference time for tests. Duplicate shown as `"DUPE!"` label below the callsign field (only in single-callsign mode).
 
 ## Setup Screen
 

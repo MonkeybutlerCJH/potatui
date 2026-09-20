@@ -512,6 +512,7 @@ class LoggerScreen(Screen):
                 timeout=15,
             )
             self._update_qso_count()
+            self._update_dupe_indicator()
         utc_str = now.strftime("%H:%Mz")
         elapsed = now - self.session.start_time
         h, rem = divmod(int(elapsed.total_seconds()), 3600)
@@ -1262,6 +1263,18 @@ class LoggerScreen(Screen):
     # Duplicate detection
     # ------------------------------------------------------------------
 
+    def _update_dupe_indicator(self) -> None:
+        """Refresh the DUPE! label for the current callsign field value."""
+        raw_cs = self.query_one("#f-callsign", Input).value.strip().upper()
+        callsigns = [cs.strip() for cs in raw_cs.split(",") if cs.strip()]
+        dup_widget = self.query_one("#dup-warning", Static)
+        if len(callsigns) == 1 and self.session.is_duplicate(
+            callsigns[0], self.band, same_utc_date=self.config.dupe_same_utc_date
+        ):
+            dup_widget.update("DUPE!")
+        else:
+            dup_widget.update("")
+
     @on(Input.Changed, "#f-callsign")
     def on_callsign_changed(self, event: Input.Changed) -> None:
         raw_cs = event.value.strip().upper()
@@ -1276,13 +1289,9 @@ class LoggerScreen(Screen):
             return
 
         callsigns = [cs.strip() for cs in raw_cs.split(",") if cs.strip()]
-        dup_widget = self.query_one("#dup-warning", Static)
 
         # Dup detection: only meaningful for single callsign
-        if len(callsigns) == 1 and self.session.is_duplicate(callsigns[0], self.band):
-            dup_widget.update("DUPE!")
-        else:
-            dup_widget.update("")
+        self._update_dupe_indicator()
 
         # Remove bars for callsigns no longer in the field
         container = self.query_one("#qrz-info-container", Vertical)
