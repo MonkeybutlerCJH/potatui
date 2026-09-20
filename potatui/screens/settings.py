@@ -217,6 +217,11 @@ class SettingsScreen(Screen):
                     yield Checkbox("", value=self.config.offline_mode, id="s-offline-mode")
                 yield Static("Disable QRZ lookups, live spots, and self-spotting. Use at parks with no internet.", classes="field-hint")
 
+                with Horizontal(classes="field-row"):
+                    yield Label("Dupe Check:", classes="field-label")
+                    yield Checkbox("Same UTC date only", value=self.config.dupe_same_utc_date, id="s-dupe-same-utc-date")
+                yield Static("Only flag a callsign as a duplicate if already worked on the current UTC date. A new UTC date counts as a new activation.", classes="field-hint")
+
                 # ── Advanced ────────────────────────────────────────────
                 yield Static("Advanced", classes="section-heading")
                 yield Static("─" * 60, classes="section-rule")
@@ -276,6 +281,7 @@ class SettingsScreen(Screen):
 
         offline_mode = self.query_one("#s-offline-mode", Checkbox).value
         debug_logging = self.query_one("#s-debug-logging", Checkbox).value
+        dupe_same_utc_date = self.query_one("#s-dupe-same-utc-date", Checkbox).value
 
         cfg = Config(
             callsign=callsign,
@@ -295,6 +301,7 @@ class SettingsScreen(Screen):
             qrz_api_url=qrz_url,
             offline_mode=offline_mode,
             debug_logging=debug_logging,
+            dupe_same_utc_date=dupe_same_utc_date,
             # vk1–vk5 preserved as-is; commands are now managed via the Commander (F7).
             vk1=self.config.vk1, vk2=self.config.vk2, vk3=self.config.vk3,
             vk4=self.config.vk4, vk5=self.config.vk5,

@@ -162,6 +162,7 @@ p2p_prefix = "US-"   # Change to "VK-", "GB-", etc. for non-US operators
 [app]
 theme        = "textual-dark"
 offline_mode = false
+dupe_same_utc_date = true    # only flag duplicates logged on the current UTC date (default)
 ```
 
 Fields you fill in here will pre-populate the activation setup screen so you don't have to retype them each time.
@@ -204,7 +205,7 @@ The entry form has two rows. Row 1 holds the fields you fill in for every QSO; r
 
 | Field      | Notes                                                                              |
 |------------|------------------------------------------------------------------------------------|
-| Callsign   | Auto-focus after each logged QSO. Accepts comma-separated callsigns for multi-op. Shows DUPE if duplicate on same band. |
+| Callsign   | Auto-focus after each logged QSO. Accepts comma-separated callsigns for multi-op. Shows DUPE if duplicate on same band and, by default, only within the current UTC date (see Settings → Dupe Check). |
 | RST Sent   | Pre-filled with `5` — type the signal digits (e.g. `9` → `59`).                   |
 | RST Rcvd   | Same.                                                                              |
 | P2P Park   | Pre-filled with the configured prefix (default `US-`). Type digits. Live park name, distance, and bearing. Auto-fills State. |
@@ -416,6 +417,8 @@ Opens the in-app settings editor from the setup screen or the logger screen. All
 - Rig mode translations (via "Configure Mode Translations…" button)
 - P2P park prefix (default `US-` — change to `VK-`, `GB-`, etc. for non-US operators)
 - QRZ username and password
+- Offline mode and debug logging
+- Duplicate check scope — by default only flag a callsign as a duplicate if it was already worked on the current UTC date (toggle in Settings)
 
 Press **Ctrl+S** or click **Save** to save and close. Changes are written immediately to the config file.
 

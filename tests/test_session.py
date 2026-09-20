@@ -78,6 +78,34 @@ class TestIsDuplicate:
         assert s.is_duplicate("K1ABC", "20m") is False
 
 
+class TestIsDuplicateSameUtcDate:
+    """Duplicate detection can be limited to the current UTC date."""
+
+    def test_same_date_is_dupe(self):
+        now = datetime(2026, 3, 14, 18, 0, 0)
+        q = make_qso(callsign="K1ABC", band="20m", timestamp_utc=datetime(2026, 3, 14, 9, 30, 0))
+        s = make_session(q)
+        assert s.is_duplicate("K1ABC", "20m", same_utc_date=True, utc_now=now) is True
+
+    def test_previous_date_not_dupe(self):
+        now = datetime(2026, 3, 15, 0, 30, 0)
+        q = make_qso(callsign="K1ABC", band="20m", timestamp_utc=datetime(2026, 3, 14, 23, 45, 0))
+        s = make_session(q)
+        assert s.is_duplicate("K1ABC", "20m", same_utc_date=True, utc_now=now) is False
+
+    def test_previous_date_still_dupe_when_disabled(self):
+        now = datetime(2026, 3, 15, 0, 30, 0)
+        q = make_qso(callsign="K1ABC", band="20m", timestamp_utc=datetime(2026, 3, 14, 23, 45, 0))
+        s = make_session(q)
+        assert s.is_duplicate("K1ABC", "20m", same_utc_date=False, utc_now=now) is True
+
+    def test_same_date_different_band_still_not_dupe(self):
+        now = datetime(2026, 3, 14, 18, 0, 0)
+        q = make_qso(callsign="K1ABC", band="20m", timestamp_utc=datetime(2026, 3, 14, 9, 30, 0))
+        s = make_session(q)
+        assert s.is_duplicate("K1ABC", "40m", same_utc_date=True, utc_now=now) is False
+
+
 # --------------------------------------------------------------------------
 # QSO.to_dict() / QSO.from_dict() round-trip
 # --------------------------------------------------------------------------

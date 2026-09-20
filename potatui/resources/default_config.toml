@@ -111,3 +111,7 @@ theme = "nord"
 # Write debug/performance logs to potatui_debug.log in the log directory.
 # Enable when troubleshooting slowness or API issues.
 debug_logging = false
+
+# Only flag a callsign as a duplicate if it was already worked on the
+# current UTC date.  A new UTC date counts as a new POTA activation.
+dupe_same_utc_date = true
