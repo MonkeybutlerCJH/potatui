@@ -407,3 +407,42 @@ class TestSpotsScreenCache:
                 assert "stale" not in error.classes
 
         _run_async(run())
+
+
+# ---------------------------------------------------------------------------
+# SettingsScreen — non-editable fields must survive a save
+# ---------------------------------------------------------------------------
+
+class TestSettingsScreenPreservesTheme:
+    def test_collect_keeps_current_theme(self):
+        """Saving Settings must not reset the command-palette theme.
+
+        Regression test for the theme being silently reset to the Config
+        dataclass default ("nord") whenever the settings screen was saved.
+        """
+        from textual.app import App, ComposeResult
+        from textual.widgets import Static
+
+        from potatui.screens.settings import SettingsScreen
+
+        config = Config(callsign="W1AW")
+        config.theme = "gruvbox"
+
+        class _TestApp(App):
+            CSS = ""
+
+            def compose(self) -> ComposeResult:
+                yield Static("")
+
+            def on_mount(self) -> None:
+                self.push_screen(SettingsScreen(config))
+
+        async def run():
+            async with _TestApp().run_test(size=(120, 50)) as pilot:
+                await pilot.pause(0.2)
+                screen = pilot.app.screen
+                result = screen._collect()
+                assert not isinstance(result, str), result
+                assert result.theme == "gruvbox"
+
+        _run_async(run())

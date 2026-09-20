@@ -482,6 +482,8 @@ Windows Terminal uses a ConPTY pseudo-terminal layer that processes ANSI escape 
 
 `PotaLogApp.watch_theme(theme)` fires whenever `app.theme` changes (e.g. via command palette). Saves the new theme name to `config.theme` and calls `save_config()`. On next launch, `on_mount` restores it with `self.theme = self._config.theme`.
 
+**SettingsScreen must preserve `theme`**: `_collect()` builds a fresh `Config` (using dataclass defaults) and `_do_save()` copies every field back onto the shared config object. Any config field not explicitly passed to that `Config(...)` is silently reset to its default on save. `theme` is not editable in Settings, so it is passed through as `theme=self.config.theme`. When adding a new `Config` field, either add a widget for it or pass the current value through — otherwise saving Settings will reset it.
+
 ## Propagation Scoring
 
 `potatui/propagation.py` — `score_spot(profile, freq_khz, dist_km) → PropScore`
